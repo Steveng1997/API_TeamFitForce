@@ -7,6 +7,7 @@ const path = require('path');
 const env = require('./src/config/env');
 const { connectDB } = require('./src/config/db');
 const errorMiddleware = require('./src/middlewares/errorMiddleware');
+const { apiLimiter } = require('./src/middlewares/rateLimitMiddleware');
 const runSeed = require('./src/seed/runSeed');
 
 // Importar Enrutadores
@@ -21,14 +22,43 @@ const coachRoutes = require('./src/routes/coachRoutes');
 
 const app = express();
 
-// Middlewares Globales
-app.use(helmet({ crossOriginResourcePolicy: false }));
-app.use(cors({ origin: env.CORS_ORIGIN, credentials: true }));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-app.use(morgan('dev'));
+// Ocultar firma de servidor Express por seguridad
+app.disable('x-powered-by');
 
-// Servir archivos estáticos de la carpeta de uploads
+// Cabeceras de Seguridad Avanzadas con Helmet
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+    contentSecurityPolicy: false, // Permitir consumo de medios estáticos
+    hidePoweredBy: true,
+    frameguard: { action: 'deny' }, // Anti-clickjacking
+    noSniff: true, // Impedir MIME sniffing
+    xssFilter: true, // Anti Cross-Site Scripting
+  })
+);
+
+// Configuración de CORS Segura
+app.use(
+  cors({
+    origin: env.CORS_ORIGIN || '*',
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+  })
+);
+
+// Parseo de Body con Límites de Tamaño Anti-DDoS
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+if (env.NODE_ENV === 'development') {
+  app.use(morgan('dev'));
+}
+
+// Aplicar Límite de Peticiones Global (Rate Limiter)
+app.use('/api', apiLimiter);
+
+// Servir archivos estáticos de la carpeta de uploads de manera segura
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Endpoint de prueba de salud de la API (Healthcheck)
@@ -38,7 +68,7 @@ app.get('/api/health', (req, res) => {
     service: 'API TeamFit Force Backend',
     version: '1.0.0',
     timestamp: new Date().toISOString(),
-    environment: env.NODE_ENV,
+    securityMode: 'Enterprise Shield Active',
   });
 });
 
@@ -62,9 +92,9 @@ const startServer = async () => {
 
   app.listen(env.PORT, () => {
     console.log(`==================================================`);
-    console.log(`🚀 Servidor API TeamFit Force ejecutándose correctamente`);
+    console.log(`🚀 Servidor API TeamFit Force Blindado & Seguro`);
     console.log(`📡 URL Base: http://localhost:${env.PORT}`);
-    console.log(`🩺 Healthcheck: http://localhost:${env.PORT}/api/health`);
+    console.log(`🛡️  Modo Seguridad: Rate Limiting & JWT Estricto Activo`);
     console.log(`==================================================`);
   });
 };

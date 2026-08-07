@@ -3,21 +3,21 @@ const BiometricModel = require('../models/Biometric');
 class BiometricController {
   static async getTodayBiometrics(req, res, next) {
     try {
-      const userId = req.user?.id || 'usr_default_123';
+      const userId = req.user.id;
       let biometrics = await BiometricModel.findLatestByUserId(userId);
 
       if (!biometrics) {
         biometrics = {
           userId,
           date: new Date().toISOString().split('T')[0],
-          steps: 8450,
+          steps: 0,
           stepsGoal: 10000,
-          stepsPercentage: 84,
-          activeCalories: 520,
+          stepsPercentage: 0,
+          activeCalories: 0,
           caloriesGoal: 700,
-          streakDays: 12,
-          restingHeartRate: 62,
-          biochemScore: 92,
+          streakDays: 1,
+          restingHeartRate: 65,
+          biochemScore: 85,
         };
       }
 
@@ -32,13 +32,13 @@ class BiometricController {
 
   static async logBiometrics(req, res, next) {
     try {
-      const userId = req.user?.id || 'usr_default_123';
+      const userId = req.user.id;
       const { steps, activeCalories, restingHeartRate } = req.body;
 
       const updated = await BiometricModel.updateLatest(userId, {
-        steps,
-        activeCalories,
-        restingHeartRate,
+        steps: Number(steps || 0),
+        activeCalories: Number(activeCalories || 0),
+        restingHeartRate: Number(restingHeartRate || 65),
       });
 
       res.json({

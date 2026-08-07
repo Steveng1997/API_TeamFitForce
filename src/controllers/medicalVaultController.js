@@ -4,13 +4,13 @@ const MedicalService = require('../services/medicalService');
 class MedicalVaultController {
   static async uploadExam(req, res, next) {
     try {
-      const userId = req.user?.id || 'usr_default_123';
+      const userId = req.user.id;
       const file = req.file;
 
       if (!file) {
         return res.status(400).json({
           success: false,
-          error: 'No se subió ningún archivo. Selecciona un archivo PDF, PNG o JPG.',
+          error: 'No se subió ningún archivo. Selecciona un archivo PDF, PNG o JPG válido.',
         });
       }
 
@@ -23,8 +23,6 @@ class MedicalVaultController {
       };
 
       const savedExam = await MedicalVaultModel.saveExam(userId, fileMeta);
-
-      // Ejecutar motor de análisis de biomarcadores con IA
       const analysisResult = MedicalService.analyzeBiomarkers();
 
       res.status(201).json({
@@ -42,11 +40,11 @@ class MedicalVaultController {
 
   static async getAnalysisResults(req, res, next) {
     try {
-      const userId = req.user?.id || 'usr_default_123';
+      const userId = req.user.id;
       let userBiomarkers = await MedicalVaultModel.getBiomarkers(userId);
 
       if (!userBiomarkers || userBiomarkers.length === 0) {
-        userBiomarkers = undefined; // Usará los predeterminados en el servicio
+        userBiomarkers = undefined;
       }
 
       const analysis = MedicalService.analyzeBiomarkers(userBiomarkers);
@@ -62,7 +60,7 @@ class MedicalVaultController {
 
   static async getBiomarkers(req, res, next) {
     try {
-      const userId = req.user?.id || 'usr_default_123';
+      const userId = req.user.id;
       let biomarkers = await MedicalVaultModel.getBiomarkers(userId);
 
       if (!biomarkers || biomarkers.length === 0) {
@@ -82,7 +80,7 @@ class MedicalVaultController {
 
   static async updateBiomarkers(req, res, next) {
     try {
-      const userId = req.user?.id || 'usr_default_123';
+      const userId = req.user.id;
       const { biomarkers } = req.body;
 
       if (!Array.isArray(biomarkers)) {

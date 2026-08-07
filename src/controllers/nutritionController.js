@@ -4,7 +4,7 @@ const NutritionService = require('../services/nutritionService');
 class NutritionController {
   static async getSummary(req, res, next) {
     try {
-      const userId = req.user?.id || 'usr_default_123';
+      const userId = req.user.id;
       const summary = await NutritionModel.getSummaryByUserId(userId);
       res.json({
         success: true,
@@ -17,7 +17,7 @@ class NutritionController {
 
   static async logMeal(req, res, next) {
     try {
-      const userId = req.user?.id || 'usr_default_123';
+      const userId = req.user.id;
       const { mealName, calories, protein, carbs, fat } = req.body;
 
       const currentSummary = await NutritionModel.getSummaryByUserId(userId);

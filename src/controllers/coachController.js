@@ -6,14 +6,14 @@ const BiometricModel = require('../models/Biometric');
 class CoachController {
   static async getHistory(req, res, next) {
     try {
-      const userId = req.user?.id || 'usr_default_123';
+      const userId = req.user.id;
       let history = await CoachModel.getHistory(userId);
 
       if (!history || history.length === 0) {
         history = [
           {
             sender: 'coach',
-            content: '¡Vamos Carlos! Veo que tu ritmo bajó. Aprieta el paso, faltan solo 3 minutos.',
+            content: `¡Hola ${req.user.name || 'Atleta'}! Estoy listo para guiar tu entrenamiento y nutrición adaptativa de hoy.`,
             timestamp: new Date().toISOString(),
           },
         ];
@@ -30,16 +30,16 @@ class CoachController {
 
   static async chat(req, res, next) {
     try {
-      const userId = req.user?.id || 'usr_default_123';
+      const userId = req.user.id;
       const { message } = req.body;
 
-      if (!message) {
-        return res.status(400).json({ success: false, error: 'El mensaje no puede estar vacío.' });
+      if (!message || typeof message !== 'string') {
+        return res.status(400).json({ success: false, error: 'El mensaje enviado es inválido.' });
       }
 
-      await CoachModel.addMessage(userId, 'user', message);
+      await CoachModel.addMessage(userId, 'user', message.trim());
 
-      const userProfile = (await UserModel.findById(userId)) || {};
+      const userProfile = (await UserModel.findById(userId)) || { name: req.user.name };
       const biometrics = (await BiometricModel.findLatestByUserId(userId)) || {};
 
       const response = CoachService.generateResponse(message, userProfile, biometrics);
@@ -56,8 +56,8 @@ class CoachController {
 
   static async motivate(req, res, next) {
     try {
-      const userId = req.user?.id || 'usr_default_123';
-      const userProfile = (await UserModel.findById(userId)) || {};
+      const userId = req.user.id;
+      const userProfile = (await UserModel.findById(userId)) || { name: req.user.name };
 
       const response = CoachService.generateResponse('motivame', userProfile);
 
