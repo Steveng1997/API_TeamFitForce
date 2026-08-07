@@ -7,6 +7,10 @@ class UserController {
       let user = await UserModel.findById(userId);
 
       if (!user) {
+        user = await UserModel.findByEmail(req.user?.email || '');
+      }
+
+      if (!user) {
         const allUsers = await UserModel.findAll();
         user = allUsers[0] || {
           id: userId,
@@ -20,9 +24,12 @@ class UserController {
         };
       }
 
+      // No retornar el hash de la contraseña por seguridad
+      const { password, ...safeUser } = user;
+
       res.json({
         success: true,
-        data: user,
+        data: safeUser,
       });
     } catch (error) {
       next(error);
@@ -34,7 +41,13 @@ class UserController {
       const userId = req.user?.id || 'usr_default_123';
       const updateData = req.body;
 
-      const updated = await UserModel.update(userId, updateData);
+      let updated = await UserModel.update(userId, updateData);
+      if (!updated) {
+        const user = await UserModel.findByEmail(req.user?.email || '');
+        if (user) {
+          updated = await UserModel.update(user.id, updateData);
+        }
+      }
 
       res.json({
         success: true,
