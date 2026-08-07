@@ -1,0 +1,48 @@
+[
+  {
+    "id": "rout1",
+    "createdAt": "2026-08-07T20:31:36.417Z",
+    "updatedAt": "2026-08-07T20:31:36.417Z",
+    "title": "Rutina Full Body",
+    "phase": "DÍA 14 / 360 | Fase 1: Condicionamiento Metabólico",
+    "day": 14,
+    "durationSeconds": 900,
+    "durationFormatted": "15:00",
+    "progressSeconds": 315,
+    "progressFormatted": "05:15",
+    "heartRateBpm": 128,
+    "targetZone": "Zona 2 Cardio (Optimizada Bóveda Médica)",
+    "burnedCalories": 185,
+    "videoUrl": "https://storage.googleapis.com/teamfit-media/routine-fullbody-demo.mp4",
+    "exercises": [
+      {
+        "id": "ex1",
+        "name": "Sentadilla Goblet",
+        "sets": 4,
+        "reps": "12 - 15",
+        "restSeconds": 60
+      },
+      {
+        "id": "ex2",
+        "name": "Flexiones de Pecho Estrictas",
+        "sets": 4,
+        "reps": "10 - 12",
+        "restSeconds": 60
+      },
+      {
+        "id": "ex3",
+        "name": "Remo con Mancuerna Unilateral",
+        "sets": 3,
+        "reps": "12 por lado",
+        "restSeconds": 45
+      },
+      {
+        "id": "ex4",
+        "name": "Plancha Abdominal Dinámica",
+        "sets": 3,
+        "reps": "45 segundos",
+        "restSeconds": 30
+      }
+    ]
+  }
+]

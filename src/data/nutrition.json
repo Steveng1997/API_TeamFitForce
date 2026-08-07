@@ -1,0 +1,30 @@
+[
+  {
+    "id": "id_1786134696397_ynrxxvbbf",
+    "createdAt": "2026-08-07T20:31:36.397Z",
+    "updatedAt": "2026-08-07T20:31:36.397Z",
+    "userId": "usr_default_123",
+    "date": "2026-08-07",
+    "caloriesConsumed": 1650,
+    "caloriesTarget": 2400,
+    "caloriesRemaining": 750,
+    "caloriesBurned": 520,
+    "macros": {
+      "protein": {
+        "current": 145,
+        "target": 180,
+        "unit": "g"
+      },
+      "carbs": {
+        "current": 185,
+        "target": 220,
+        "unit": "g"
+      },
+      "fats": {
+        "current": 48,
+        "target": 65,
+        "unit": "g"
+      }
+    }
+  }
+]

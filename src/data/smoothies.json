@@ -1,0 +1,48 @@
+[
+  {
+    "id": "sm1",
+    "createdAt": "2026-08-07T20:31:36.408Z",
+    "updatedAt": "2026-08-07T20:31:36.408Z",
+    "title": "Verde Metabólico & Depurativo",
+    "type": "verde",
+    "phase": "FASE ACTIVA: OPTIMIZACIÓN DEL PROGRESO",
+    "consumptionTiming": "Toma matutina en ayunas",
+    "ingredients": [
+      "1 taza de espinacas frescas",
+      "1/2 manzana verde",
+      "1 trozo de jengibre fresco (1cm)",
+      "1/2 pepino con piel",
+      "1 vaso de agua de coco (250ml)",
+      "Jugo de 1/2 limón"
+    ],
+    "benefits": [
+      "Depuración hepática matutina",
+      "Modulación de glucosa en sangre",
+      "Aporte biodisponible de clorofila y magnesio"
+    ],
+    "isConsumed": true
+  },
+  {
+    "id": "sm2",
+    "createdAt": "2026-08-07T20:31:36.412Z",
+    "updatedAt": "2026-08-07T20:31:36.412Z",
+    "title": "Batido Funcional Antiinflamatorio Post-Entreno",
+    "type": "antiinflamatorio",
+    "phase": "FASE ACTIVA: RECUPERACIÓN BIOQUÍMICA",
+    "consumptionTiming": "Post-entrenamiento (primeros 30 min)",
+    "ingredients": [
+      "1 scoop de proteína aislada de suero",
+      "1/2 cucharadita de cúrcuma pura",
+      "1/4 cucharadita de pimienta negra",
+      "1/2 taza de frutos rojos congelados",
+      "1 cucharada de semillas de chía",
+      "300ml de leche de almendras sin azúcar"
+    ],
+    "benefits": [
+      "Descenso acelerado de la PCR Ultrasensible",
+      "Síntesis proteica muscular avanzada",
+      "Control de inflamación articular pos-esfuerzo"
+    ],
+    "isConsumed": true
+  }
+]

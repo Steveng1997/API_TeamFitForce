@@ -1,0 +1,74 @@
+const CoachModel = require('../models/Coach');
+const CoachService = require('../services/coachService');
+const UserModel = require('../models/User');
+const BiometricModel = require('../models/Biometric');
+
+class CoachController {
+  static async getHistory(req, res, next) {
+    try {
+      const userId = req.user?.id || 'usr_default_123';
+      let history = await CoachModel.getHistory(userId);
+
+      if (!history || history.length === 0) {
+        history = [
+          {
+            sender: 'coach',
+            content: '¡Vamos Carlos! Veo que tu ritmo bajó. Aprieta el paso, faltan solo 3 minutos.',
+            timestamp: new Date().toISOString(),
+          },
+        ];
+      }
+
+      res.json({
+        success: true,
+        data: history,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async chat(req, res, next) {
+    try {
+      const userId = req.user?.id || 'usr_default_123';
+      const { message } = req.body;
+
+      if (!message) {
+        return res.status(400).json({ success: false, error: 'El mensaje no puede estar vacío.' });
+      }
+
+      await CoachModel.addMessage(userId, 'user', message);
+
+      const userProfile = (await UserModel.findById(userId)) || {};
+      const biometrics = (await BiometricModel.findLatestByUserId(userId)) || {};
+
+      const response = CoachService.generateResponse(message, userProfile, biometrics);
+      await CoachModel.addMessage(userId, 'coach', response.message);
+
+      res.json({
+        success: true,
+        data: response,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async motivate(req, res, next) {
+    try {
+      const userId = req.user?.id || 'usr_default_123';
+      const userProfile = (await UserModel.findById(userId)) || {};
+
+      const response = CoachService.generateResponse('motivame', userProfile);
+
+      res.json({
+        success: true,
+        data: response,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+}
+
+module.exports = CoachController;

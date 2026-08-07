@@ -1,0 +1,58 @@
+[
+  {
+    "id": "rec1",
+    "createdAt": "2026-08-07T20:31:36.401Z",
+    "updatedAt": "2026-08-07T20:31:36.401Z",
+    "title": "Bowl Proteico de Salmón & Quinoa",
+    "category": "Almuerzo / Cena",
+    "prepTime": "20 min",
+    "calories": 580,
+    "protein": 42,
+    "carbs": 45,
+    "fat": 18,
+    "ragBadge": "Sugerido RAG Bóveda Médica",
+    "ragReason": "Optimizado para reducir la PCR Ultrasensible por alto contenido en Omega-3.",
+    "ingredients": [
+      "180g de filete de salmón fresco",
+      "1/2 taza de quinoa cocida",
+      "1/2 aguacate en rodajas",
+      "1 taza de espinacas baby",
+      "1 cucharada de semillas de sésamo",
+      "Aderezo de aceite de oliva extra virgen y limón"
+    ],
+    "preparationSteps": [
+      "Sazonar el salmón con sal marina, pimienta y limón.",
+      "Sellar en la sartén a fuego medio durante 4 minutos por lado.",
+      "Colocar las espinacas y quinoa en la base del bowl.",
+      "Añadir el salmón, el aguacate y espolvorear las semillas de sésamo.",
+      "Rociar con aceite de oliva extra virgen."
+    ]
+  },
+  {
+    "id": "rec2",
+    "createdAt": "2026-08-07T20:31:36.405Z",
+    "updatedAt": "2026-08-07T20:31:36.405Z",
+    "title": "Omelette Antiinflamatorio de Claras y Cúrcuma",
+    "category": "Desayuno",
+    "prepTime": "12 min",
+    "calories": 340,
+    "protein": 35,
+    "carbs": 12,
+    "fat": 14,
+    "ragBadge": "Sugerido RAG Nutricional",
+    "ragReason": "La cúrcuma y la espinaca modulan la respuesta del Cortisol matutino.",
+    "ingredients": [
+      "4 claras de huevo + 1 huevo entero",
+      "1/2 taza de champiñones laminados",
+      "1/2 cucharadita de cúrcuma en polvo",
+      "Pizca de pimienta negra (activa la curcumina)",
+      "1/4 de taza de queso feta bajo en grasa"
+    ],
+    "preparationSteps": [
+      "Batir los huevos con la cúrcuma y pimienta negra.",
+      "Saltear los champiñones en una sartén antiadherente.",
+      "Verter la mezcla de huevo y cocinar a fuego bajo.",
+      "Agregar el queso feta y doblar a la mitad."
+    ]
+  }
+]

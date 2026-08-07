@@ -1,0 +1,80 @@
+[
+  {
+    "id": "bm1",
+    "createdAt": "2026-08-07T20:31:36.420Z",
+    "updatedAt": "2026-08-07T20:31:36.420Z",
+    "userId": "usr_default_123",
+    "name": "Glucosa en Ayunas",
+    "value": "88",
+    "unit": "mg/dL",
+    "referenceRange": "70 - 99 mg/dL",
+    "status": "optimal",
+    "statusLabel": "Óptimo",
+    "category": "Metabolismo"
+  },
+  {
+    "id": "bm2",
+    "createdAt": "2026-08-07T20:31:36.426Z",
+    "updatedAt": "2026-08-07T20:31:36.426Z",
+    "userId": "usr_default_123",
+    "name": "Cortisol Matutino",
+    "value": "18.4",
+    "unit": "µg/dL",
+    "referenceRange": "5.0 - 15.0 µg/dL",
+    "status": "high",
+    "statusLabel": "Alto (Estrés)",
+    "category": "Hormonal"
+  },
+  {
+    "id": "bm3",
+    "createdAt": "2026-08-07T20:31:36.429Z",
+    "updatedAt": "2026-08-07T20:31:36.429Z",
+    "userId": "usr_default_123",
+    "name": "PCR Ultrasensible",
+    "value": "3.2",
+    "unit": "mg/L",
+    "referenceRange": "< 1.0 mg/L",
+    "status": "high",
+    "statusLabel": "Alto (Inflamación)",
+    "category": "Biomarcador Inflamatorio"
+  },
+  {
+    "id": "bm4",
+    "createdAt": "2026-08-07T20:31:36.433Z",
+    "updatedAt": "2026-08-07T20:31:36.433Z",
+    "userId": "usr_default_123",
+    "name": "Vitamina D3 (25-OH)",
+    "value": "54",
+    "unit": "ng/mL",
+    "referenceRange": "30 - 80 ng/mL",
+    "status": "optimal",
+    "statusLabel": "Óptimo",
+    "category": "Micronutrientes"
+  },
+  {
+    "id": "bm5",
+    "createdAt": "2026-08-07T20:31:36.436Z",
+    "updatedAt": "2026-08-07T20:31:36.436Z",
+    "userId": "usr_default_123",
+    "name": "Triglicéridos",
+    "value": "105",
+    "unit": "mg/dL",
+    "referenceRange": "< 150 mg/dL",
+    "status": "stable",
+    "statusLabel": "Estable",
+    "category": "Perfil Lipídico"
+  },
+  {
+    "id": "bm6",
+    "createdAt": "2026-08-07T20:31:36.440Z",
+    "updatedAt": "2026-08-07T20:31:36.440Z",
+    "userId": "usr_default_123",
+    "name": "Colesterol HDL",
+    "value": "58",
+    "unit": "mg/dL",
+    "referenceRange": "> 40 mg/dL",
+    "status": "optimal",
+    "statusLabel": "Óptimo",
+    "category": "Perfil Lipídico"
+  }
+]

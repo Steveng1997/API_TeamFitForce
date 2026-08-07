@@ -1,0 +1,17 @@
+[
+  {
+    "id": "id_1786134696393_ized9pi4a",
+    "createdAt": "2026-08-07T20:31:36.393Z",
+    "updatedAt": "2026-08-07T20:31:36.393Z",
+    "userId": "usr_default_123",
+    "date": "2026-08-07",
+    "steps": 8450,
+    "stepsGoal": 10000,
+    "stepsPercentage": 84,
+    "activeCalories": 520,
+    "caloriesGoal": 700,
+    "streakDays": 12,
+    "restingHeartRate": 62,
+    "biochemScore": 92
+  }
+]

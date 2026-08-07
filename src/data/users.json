@@ -1,0 +1,16 @@
+[
+  {
+    "id": "usr_default_123",
+    "createdAt": "2026-08-07T20:31:36.390Z",
+    "updatedAt": "2026-08-07T20:31:36.390Z",
+    "name": "Carlos",
+    "email": "carlos@teamfit.com",
+    "password": "$2a$10$e8w8q...",
+    "age": "32",
+    "weight": "82",
+    "size": "M",
+    "height": "178",
+    "goal": "Tonificar y ganar masa muscular",
+    "themePreference": "dark"
+  }
+]

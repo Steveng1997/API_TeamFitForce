@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  api:
+    build: .
+    container_name: teamfit_force_api
+    restart: always
+    ports:
+      - '3000:3000'
+    environment:
+      - PORT=3000
+      - NODE_ENV=production
+      - JWT_SECRET=teamfit_force_super_secret_jwt_key_2026
+      - CORS_ORIGIN=*
+      - DB_TYPE=json_storage
+    volumes:
+      - ./uploads:/app/uploads
