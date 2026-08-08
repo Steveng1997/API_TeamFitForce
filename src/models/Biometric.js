@@ -14,17 +14,21 @@ class BiometricModel {
   }
 
   static async create(data) {
+    const steps = typeof data.steps === 'number' ? data.steps : 0;
+    const stepsGoal = data.stepsGoal || 10000;
+    const stepsPercentage = Math.min(100, Math.round((steps / stepsGoal) * 100));
+
     return await collection.insert({
       userId: data.userId,
       date: data.date || new Date().toISOString().split('T')[0],
-      steps: data.steps || 8450,
-      stepsGoal: data.stepsGoal || 10000,
-      stepsPercentage: data.stepsPercentage || 84,
-      activeCalories: data.activeCalories || 520,
+      steps,
+      stepsGoal,
+      stepsPercentage,
+      activeCalories: typeof data.activeCalories === 'number' ? data.activeCalories : Math.round(steps * 0.04),
       caloriesGoal: data.caloriesGoal || 700,
-      streakDays: data.streakDays || 12,
-      restingHeartRate: data.restingHeartRate || 62,
-      biochemScore: data.biochemScore || 92,
+      streakDays: typeof data.streakDays === 'number' ? data.streakDays : 0,
+      restingHeartRate: data.restingHeartRate || 65,
+      biochemScore: data.biochemScore || 0,
     });
   }
 
