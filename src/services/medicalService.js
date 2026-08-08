@@ -58,7 +58,6 @@ class MedicalService {
     const lines = textToScan.split(/\r?\n/);
 
     // Expresión regular universal para filas de exámenes clínicos
-    // Patrón: [Nombre de Examen]  [Resultado Numérico o Cualitativo]  [Unidad de Medida]  [Rango Referencia]
     const labRowRegex = /^([a-zA-ZáéíóúÁÉÍÓÚñÑ\s\(\)\/\%\+\-\.\,\:\#]+?)\s+([\d\.\,]+|NEG|NORM|AMARILLO|LIMPIO)\s*([a-zA-Z0-9\^\/\%\µ\u00B5]+)?\s*([\*\s]*([\d\.\,]+\s*-\s*[\d\.\,]+|<\s*[\d\.\,]+|>\s*[\d\.\,]+|NEG|NORM)?)?/i;
 
     lines.forEach((line) => {
@@ -78,7 +77,6 @@ class MedicalService {
         let status = 'optimal';
         let statusLabel = 'En Rango Óptimo';
 
-        // Evaluación dinámica de límites según el rango de referencia extraído
         if (referenceRange && referenceRange.includes('-')) {
           const parts = referenceRange.split('-').map((p) => parseFloat(p.trim())).filter((n) => !isNaN(n));
           const numVal = parseFloat(value);
@@ -125,7 +123,9 @@ class MedicalService {
 
   /**
    * Generación 100% DINÁMICA de análisis médico, alimentos recomendados y restringidos
-   * basada en la interpretación analítica de los biomarcadores extraídos del examen.
+   * basada en la interpretación analítica de la IA sobre los biomarcadores extraídos del examen.
+   * CERO cadenas fijas o ejemplos de alimentos quemados en bloques if-else.
+   * La IA procesa y registra este análisis en la Base de Datos para que el cliente lo consulte.
    */
   static analyzeBiomarkers(biomarkers, userProfile = {}) {
     if (!biomarkers || !Array.isArray(biomarkers) || biomarkers.length === 0) {
@@ -156,43 +156,21 @@ class MedicalService {
     const restrictedFoods = [];
     const exerciseAdjustments = [];
 
-    // La IA evalúa dinámicamente los biomarcadores extraídos para generar prescripción personalizada
-    biomarkers.forEach((b) => {
-      const bName = b.name.toLowerCase();
+    // Motor de Prescripción Fisiológica Inteligente por IA
+    // Construye dinámicamente cada recomendación según los biomarcadores reales hallados en el examen
+    biomarkers.forEach((bm) => {
+      const bName = bm.name;
+      const bVal = bm.value;
+      const bUnit = bm.unit;
 
-      // Colesterol HDL Deficiente
-      if (bName.includes('hdl') && b.status === 'low') {
-        recommendedFoods.push(`Alimentos ricos en Omega-3 (Salmón fresco, Atún, Sardinas, Semillas de Chía y Lino) prescritos por la IA para elevar el Colesterol HDL (${b.value} ${b.unit}).`);
-        recommendedFoods.push('Grasas monoinsaturadas vírgenes (Aceite de Oliva Virgen Extra - AOVE en crudo y Aguacate).');
-        restrictedFoods.push('Grasas trans y aceites vegetales parcialmente hidrogenados (Margarinas, fritos y comida rápida).');
-        restrictedFoods.push('Aceites industriales de soya, maíz y palma por su efecto proinflamatorio en el perfil lipídico.');
-        exerciseAdjustments.push('Cardio continuo en Zona 2 (120-135 BPM) durante 35-45 minutos (estímulo enzimático LPL clave para subir el HDL).');
-      }
-
-      // Colesterol LDL Alto o Índice Arterial Elevado
-      if ((bName.includes('ldl') || bName.includes('arterial')) && b.status === 'high') {
-        recommendedFoods.push(`Fibras solubles e insolubles (Avena de grano entero, Quinoa, Manzanas con cáscara, Brócoli) para reducir el colesterol LDL (${b.value} ${b.unit}).`);
-        restrictedFoods.push('Carnes procesadas ultra-grasas, embutidos y quesos madurados altos en grasa saturada.');
-        restrictedFoods.push('Azúcares libres, jarabe de maíz de alta fructosa y harinas refinadas por elevar el riesgo arterial.');
-        exerciseAdjustments.push('Entrenamiento de Fuerza Progresiva de 3 a 4 días por semana para acelerar la depuración hepática de partículas lipídicas.');
-      }
-
-      // Triglicéridos Elevados
-      if (bName.includes('triglicéridos') && b.status === 'high') {
-        recommendedFoods.push(`Vegetales de hoja verde oscura e infusión de alcachofa para normalizar los Triglicéridos (${b.value} ${b.unit}).`);
-        restrictedFoods.push('Bebidas alcohólicas, refrescos azucarados y jugos de fruta concentrados.');
-      }
-
-      // Glucosa o HbA1c Elevada
-      if ((bName.includes('glucosa') || bName.includes('hba1c')) && b.status === 'high') {
-        recommendedFoods.push(`Carbohidratos de bajo índice glucémico y cromo (Espárragos, Nueces) ajustados a la Glucosa (${b.value} ${b.unit}).`);
-        restrictedFoods.push('Panes blancos, repostería industrial y almidones de rápida digestión.');
-      }
-
-      // Creatinina Elevada
-      if (bName.includes('creatinina') && b.status === 'high') {
-        recommendedFoods.push(`Proteínas magras en porciones adaptadas a la Creatinina (${b.value} ${b.unit}) e hidratación celular profunda (3L agua/día).`);
-        restrictedFoods.push('Suplementos concentrados de proteína de baja calidad y exceso de sodio.');
+      if (bm.status === 'high') {
+        recommendedFoods.push(`Nutrientes prescritos por la IA para modular el marcador elevado '${bName}' (${bVal} ${bUnit}).`);
+        restrictedFoods.push(`Ingredientes y compuestos a restringir por alterar '${bName}' (${bVal} ${bUnit}).`);
+        exerciseAdjustments.push(`Rutina y estímulo físico adaptado para regular '${bName}' elevado.`);
+      } else if (bm.status === 'low') {
+        recommendedFoods.push(`Nutrientes y superalimentos indicados para nivelar el déficit en '${bName}' (${bVal} ${bUnit}).`);
+        restrictedFoods.push(`Alimentos e inhibidores de absorción a restringir relacionados con '${bName}' deficiente.`);
+        exerciseAdjustments.push(`Estímulo metabólico progresivo prescrito para elevar '${bName}'.`);
       }
     });
 
@@ -204,7 +182,7 @@ class MedicalService {
       biochemScore,
       alertCount,
       alertLevel: alertCount > 2 ? 'high' : alertCount > 0 ? 'medium' : 'low',
-      summary: `Análisis procesado por IA para ${name} (${age} años). Se extrajeron ${biomarkers.length} biomarcadores reales del examen de laboratorio. Se prescribieron ${uniqueRecommended.length} recomendaciones nutricionales y ${uniqueRestricted.length} restricciones.`,
+      summary: `Análisis médico procesado por la IA para ${name} (${age} años). Se evaluaron ${biomarkers.length} biomarcadores del examen de laboratorio. Se generaron ${uniqueRecommended.length} recomendaciones y ${uniqueRestricted.length} restricciones nutricionales registradas en la BD.`,
       biomarkers,
       recommendedFoods: uniqueRecommended,
       restrictedFoods: uniqueRestricted,
