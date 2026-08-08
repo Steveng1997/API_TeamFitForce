@@ -27,7 +27,7 @@ class UserModel {
     const cleanEmail = (email || '').toLowerCase().trim();
     const items = await collection.find({ email: cleanEmail });
     if (items && items.length > 0) return items[0];
-    const all = await collection.findAll();
+    const all = await collection.find({});
     return all.find((u) => (u.email || '').toLowerCase() === cleanEmail) || null;
   }
 
@@ -35,7 +35,7 @@ class UserModel {
     const cleanUsername = (username || '').toLowerCase().trim();
     const items = await collection.find({ username: cleanUsername });
     if (items && items.length > 0) return items[0];
-    const all = await collection.findAll();
+    const all = await collection.find({});
     return all.find((u) => (u.username || '').toLowerCase() === cleanUsername) || null;
   }
 
@@ -49,7 +49,7 @@ class UserModel {
   }
 
   static async findAll() {
-    return await collection.findAll();
+    return await collection.find({});
   }
 
   static async update(id, updateData) {
