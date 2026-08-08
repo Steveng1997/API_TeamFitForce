@@ -22,6 +22,9 @@ const coachRoutes = require('./src/routes/coachRoutes');
 
 const app = express();
 
+// Configuración de Proxy Confiable para AWS App Runner y Rate Limiting
+app.set('trust proxy', 1);
+
 // Ocultar firma de servidor Express por seguridad
 app.disable('x-powered-by');
 

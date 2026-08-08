@@ -7,6 +7,10 @@ class RoutineModel {
     return await routineCollection.find();
   }
 
+  static async getAll() {
+    return await this.findAll();
+  }
+
   static async findById(id) {
     return await routineCollection.findById(id);
   }
