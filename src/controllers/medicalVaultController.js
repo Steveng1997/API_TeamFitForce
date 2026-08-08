@@ -11,29 +11,31 @@ class MedicalVaultController {
   static async uploadExam(req, res, next) {
     try {
       const userId = req.user.id;
-      const file = req.file;
+      const files = req.files && req.files.length > 0 ? req.files : (req.file ? [req.file] : []);
 
-      if (!file) {
+      if (!files || files.length === 0) {
         return res.status(400).json({
           success: false,
-          error: 'No se subió ningún archivo. Selecciona un archivo PDF, PNG, JPG o JPEG válido.',
+          error: 'No se subió ningún archivo. Selecciona uno o más archivos PDF, PNG, JPG o JPEG válidos.',
         });
       }
 
       const userProfile = (await UserModel.findById(userId)) || { name: req.user.name };
+      const primaryFile = files[0];
 
       const fileMeta = {
-        fileName: file.filename,
-        originalName: file.originalname,
-        fileSize: file.size,
-        fileType: file.mimetype,
-        fileUrl: `/uploads/${file.filename}`,
+        fileName: files.map(f => f.filename).join(', '),
+        originalName: files.map(f => f.originalname).join(', '),
+        fileSize: files.reduce((acc, f) => acc + f.size, 0),
+        fileType: primaryFile.mimetype,
+        fileUrl: `/uploads/${primaryFile.filename}`,
+        totalFiles: files.length,
       };
 
       const aiResponseId = `ai_resp_${Date.now()}_${Math.round(Math.random() * 10000)}`;
 
-      // La IA procesa el examen y genera el análisis nutricional y de entrenamiento dinámico
-      const analysisResult = await MedicalService.processExamFile(file, userProfile);
+      // La IA procesa todos los exámenes subidos y genera el análisis nutricional y de rutina dinámico
+      const analysisResult = await MedicalService.processExamFiles(files, userProfile);
 
       // REGISTRO PERSISTENTE EN BASE DE DATOS
       const savedExam = await MedicalVaultModel.saveExam(userId, fileMeta, analysisResult, aiResponseId);

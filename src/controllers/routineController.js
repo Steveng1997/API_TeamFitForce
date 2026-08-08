@@ -1,9 +1,31 @@
 const RoutineModel = require('../models/Routine');
+const MedicalVaultModel = require('../models/MedicalVault');
 
 class RoutineController {
   static async getRoutines(req, res, next) {
     try {
-      const routines = await RoutineModel.getAll();
+      const userId = req.user?.id;
+      let routines = await RoutineModel.getAll();
+
+      if (userId) {
+        const latestExam = await MedicalVaultModel.getLatestExam(userId);
+        if (latestExam && latestExam.analysisResult && latestExam.analysisResult.workoutRoutine) {
+          const aiRoutine = latestExam.analysisResult.workoutRoutine;
+          // Merge AI routine into head of routines
+          const mergedRoutine = {
+            id: 'ai_routine_latest',
+            title: aiRoutine.title || 'Rutina Adaptativa IA',
+            phase: aiRoutine.phase || 'Prescripción Fisiológica',
+            targetZone: aiRoutine.targetZone || 'Zona Cardio Regulada',
+            weeklyFrequency: aiRoutine.weeklyFrequency || '4 Días',
+            safetyNotes: aiRoutine.safetyNotes || '',
+            exercises: aiRoutine.exercises || [],
+            progressSeconds: 0,
+          };
+          routines = [mergedRoutine, ...(routines || [])];
+        }
+      }
+
       res.json({
         success: true,
         count: (routines || []).length,

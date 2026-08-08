@@ -38,20 +38,22 @@ class MedicalService {
   }
 
   /**
-   * Analiza el examen (PDF o Imagen con Vision) con la API de OpenAI (gpt-4o-mini).
+   * Analiza múltiples archivos (PDFs o Imágenes con Vision) con la API de OpenAI (gpt-4o-mini).
    */
-  static async analyzeWithOpenAI(file, rawText, userProfile = {}) {
+  static async analyzeWithOpenAIMultiFiles(files = [], userProfile = {}) {
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey || apiKey.trim() === '') {
       console.warn('[IA Bóveda Médica] Sin OPENAI_API_KEY configurado. Usando analizador clínico interno.');
       return null;
     }
 
-    const systemPrompt = `Eres un sistema médico experto en telemetría de laboratorio clínico y bioanálisis deportivo de TeamFit Force. 
-Tu tarea es analizar la información o imagen del examen médico de laboratorio enviado.
-Analiza ÚNICAMENTE la información real presente en el examen.
+    const systemPrompt = `Eres un sistema médico experto en telemetría de laboratorio clínico, bioanálisis y prescripción deportiva de TeamFit Force. 
+Tu tarea es analizar la información o imágenes de TODOS los exámenes médicos de laboratorio recibidos (PDFs o documentos/imágenes).
+Analiza ÚNICAMENTE la información real presente en los exámenes y el perfil del usuario.
 Extrae los biomarcadores reales hallados con sus valores, unidades, rangos de referencia e interpreta su estado ('optimal', 'high', 'low').
-Calcula el biochemScore (0-100), alertCount, alertLevel ('low', 'medium', 'high'), y redacta recomendaciones específicas de nutrición, alimentos a restringir y modificaciones al plan de entrenamiento basadas estrictamente en los biomarcadores del usuario.
+Calcula el biochemScore (0-100), alertCount, alertLevel ('low', 'medium', 'high'), redacta recomendaciones específicas de nutrición, alimentos a restringir y modificaciones al plan de entrenamiento basadas estrictamente en los biomarcadores del usuario.
+
+ADEMÁS, DEBES prescribir una Rutina de Entrenamiento 100% personalizada ("workoutRoutine") adaptada fisiológicamente a los resultados del usuario y su perfil físico (CERO rutinas genéricas).
 
 DEBES responder ÚNICAMENTE con un objeto JSON válido respetando el siguiente esquema de tipos:
 {
@@ -74,37 +76,64 @@ DEBES responder ÚNICAMENTE con un objeto JSON válido respetando el siguiente e
   "recommendedFoods": string[],
   "restrictedFoods": string[],
   "exerciseAdjustments": string[],
+  "workoutRoutine": {
+    "title": string,
+    "phase": string,
+    "targetZone": string,
+    "weeklyFrequency": string,
+    "safetyNotes": string,
+    "exercises": [
+      {
+        "id": string,
+        "name": string,
+        "sets": string,
+        "reps": string,
+        "rest": string,
+        "notes": string
+      }
+    ]
+  },
   "nextExamDays": number,
   "nextExamText": string
 }`;
 
-    const mimeType = (file?.mimetype || '').toLowerCase();
-    const ext = path.extname(file?.originalname || file?.filename || '').toLowerCase();
-    const isImage = mimeType.includes('image') || ['.png', '.jpg', '.jpeg'].includes(ext);
+    const userContent = [];
+    userContent.push({
+      type: 'text',
+      text: `Perfil del Usuario: ${JSON.stringify(userProfile)}\nSe adjuntan ${files.length} archivo(s) de exámenes clínicos. Por favor analiza exhaustivamente todos los documentos e imágenes adjuntas y prescribe la rutina adaptada:`,
+    });
 
-    let userContent;
+    let pdfCombinedText = '';
 
-    if (isImage && file?.path && fs.existsSync(file.path)) {
-      const imageBuffer = fs.readFileSync(file.path);
-      const base64Data = imageBuffer.toString('base64');
-      const imageMime = mimeType || (ext === '.png' ? 'image/png' : 'image/jpeg');
+    for (const file of files) {
+      const mimeType = (file?.mimetype || '').toLowerCase();
+      const ext = path.extname(file?.originalname || file?.filename || '').toLowerCase();
+      const isImage = mimeType.includes('image') || ['.png', '.jpg', '.jpeg'].includes(ext);
 
-      userContent = [
-        {
-          type: 'text',
-          text: `Perfil del Usuario: ${JSON.stringify(userProfile)}\nNombre del Archivo: ${file.originalname || file.filename}\nAnaliza este examen médico de laboratorio presentado en la imagen y extrae todos los biomarcadores y recomendaciones:`,
-        },
-        {
+      if (isImage && file?.path && fs.existsSync(file.path)) {
+        const imageBuffer = fs.readFileSync(file.path);
+        const base64Data = imageBuffer.toString('base64');
+        const imageMime = mimeType || (ext === '.png' ? 'image/png' : 'image/jpeg');
+
+        userContent.push({
           type: 'image_url',
           image_url: {
             url: `data:${imageMime};base64,${base64Data}`,
           },
-        },
-      ];
-    } else {
-      // Truncar de forma segura para no exceder los límites de tokens
-      const safeText = (rawText || '').substring(0, 12000);
-      userContent = `Perfil del Usuario: ${JSON.stringify(userProfile)}\nNombre del Archivo: ${file?.originalname || file?.filename}\n\nTexto descomprimido del examen PDF:\n---\n${safeText || 'Analizar según el contenido del archivo.'}\n---`;
+        });
+      } else {
+        const text = await this.extractTextFromFile(file);
+        if (text) {
+          pdfCombinedText += `\n--- Archivo: ${file.originalname || file.filename} ---\n` + text;
+        }
+      }
+    }
+
+    if (pdfCombinedText.trim()) {
+      userContent.push({
+        type: 'text',
+        text: `Texto extraído de los archivos PDF:\n${pdfCombinedText.substring(0, 15000)}`,
+      });
     }
 
     try {
@@ -144,41 +173,39 @@ DEBES responder ÚNICAMENTE con un objeto JSON válido respetando el siguiente e
   }
 
   /**
-   * Procesa adaptativamente cualquier examen médico de laboratorio subido por el usuario (PDF/PNG/JPG/JPEG).
+   * Procesa adaptativamente múltiples archivos de laboratorio (PDF/PNG/JPG/JPEG).
    */
-  static async processExamFile(file, userProfile = {}) {
-    if (!file) {
+  static async processExamFiles(files = [], userProfile = {}) {
+    const fileList = Array.isArray(files) ? files : [files];
+    if (fileList.length === 0) {
       return this.analyzeBiomarkers([], userProfile);
     }
 
-    const mimeType = (file.mimetype || '').toLowerCase();
-    const ext = path.extname(file.originalname || file.filename || '').toLowerCase();
-    const isPDF = mimeType.includes('pdf') || ext === '.pdf';
-    const isImage = mimeType.includes('image') || ['.png', '.jpg', '.jpeg'].includes(ext);
+    console.log(`[IA Bóveda Médica] Procesando ${fileList.length} archivo(s) de laboratorio...`);
 
-    console.log(`[IA Bóveda Médica] Procesando archivo de laboratorio: ${file.originalname || file.filename}`);
-    console.log(`[IA Bóveda Médica] Formato detectado: ${isPDF ? 'Documento PDF' : isImage ? 'Imagen PNG/JPEG' : 'Archivo Estándar'}`);
-
-    // 1. Extraer el texto real descomprimiendo las páginas del PDF mediante pdf-parse
-    const rawText = await this.extractTextFromFile(file);
-    console.log(`[IA Bóveda Médica] Caracteres de texto descomprimidos: ${rawText.length}`);
-
-    // 2. Intentar análisis inteligente por IA con OpenAI (gpt-4o-mini con soporte para PDF y Vision)
-    const aiAnalysis = await this.analyzeWithOpenAI(file, rawText, userProfile);
+    const aiAnalysis = await this.analyzeWithOpenAIMultiFiles(fileList, userProfile);
 
     if (aiAnalysis && Array.isArray(aiAnalysis.biomarkers) && aiAnalysis.biomarkers.length > 0) {
-      console.log(`[IA Bóveda Médica] Análisis por IA completado exitosamente con ${aiAnalysis.biomarkers.length} biomarcadores.`);
-      aiAnalysis.formatDetected = isPDF ? 'Documento PDF (Texto Descomprimido)' : isImage ? 'Imagen (Vision IA)' : 'Estándar';
+      console.log(`[IA Bóveda Médica] Análisis por IA completado exitosamente para ${fileList.length} archivos con ${aiAnalysis.biomarkers.length} biomarcadores.`);
+      aiAnalysis.formatDetected = `${fileList.length} Archivo(s) Analizados por IA`;
       return aiAnalysis;
     }
 
-    // 3. Fallback: Extracción estructurada sobre el texto descomprimido del PDF
-    console.log('[IA Bóveda Médica] Ejecutando análisis clínico de respaldo sobre el texto extraído del PDF...');
-    const extractedBiomarkers = this.extractBiomarkersWithAI(rawText, file.originalname || file.filename);
+    // Fallback si la API de IA no responde
+    let combinedText = '';
+    for (const f of fileList) {
+      const text = await this.extractTextFromFile(f);
+      combinedText += '\n' + text;
+    }
 
+    const extractedBiomarkers = this.extractBiomarkersWithAI(combinedText, fileList[0]?.originalname || 'examen');
     const analysis = this.analyzeBiomarkers(extractedBiomarkers, userProfile);
-    analysis.formatDetected = isPDF ? 'PDF' : isImage ? 'Imagen (PNG/JPG/JPEG)' : 'Estándar';
+    analysis.formatDetected = `${fileList.length} Archivo(s) (Extracción Local)`;
     return analysis;
+  }
+
+  static async processExamFile(file, userProfile = {}) {
+    return this.processExamFiles([file], userProfile);
   }
 
   /**
@@ -253,7 +280,7 @@ DEBES responder ÚNICAMENTE con un objeto JSON válido respetando el siguiente e
   }
 
   /**
-   * Generación DINÁMICA de análisis médico
+   * Generación DINÁMICA de análisis médico y rutina adaptativa
    */
   static analyzeBiomarkers(biomarkers, userProfile = {}) {
     if (!biomarkers || !Array.isArray(biomarkers) || biomarkers.length === 0) {
@@ -266,6 +293,7 @@ DEBES responder ÚNICAMENTE con un objeto JSON válido respetando el siguiente e
         recommendedFoods: [],
         restrictedFoods: [],
         exerciseAdjustments: [],
+        workoutRoutine: null,
         nextExamDays: 0,
         nextExamText: 'Adjunta tu examen médico para activar la telemetría.',
       };
@@ -304,15 +332,60 @@ DEBES responder ÚNICAMENTE con un objeto JSON válido respetando el siguiente e
     const uniqueRestricted = [...new Set(restrictedFoods)];
     const uniqueExercise = [...new Set(exerciseAdjustments)];
 
+    const workoutRoutine = {
+      title: `Rutina Adaptativa para ${name}`,
+      phase: highAlerts.length > 0 ? 'Modulación Metabólica & Recuperación' : 'Acondicionamiento Metabólico Avanzado',
+      targetZone: highAlerts.length > 0 ? 'Zona 2 Cardio (125-135 BPM)' : 'Zona 3-4 Hipertrofia (140-165 BPM)',
+      weeklyFrequency: '4 Días por Semana',
+      safetyNotes: highAlerts.length > 0
+        ? `Prescripción ajustada por marcadores elevados (${highAlerts.map(b => b.name).join(', ')}). Mantener hidratación continua y descansos controlados.`
+        : 'Estímulo progresivo según telemetría óptima.',
+      exercises: [
+        {
+          id: 'ex_1',
+          name: 'Sentadilla Libre con Mancuernas',
+          sets: '4 Series',
+          reps: '12 Repeticiones',
+          rest: '60 Segundos',
+          notes: 'Fase concéntrica explosiva, mantener ritmo respiratorio.',
+        },
+        {
+          id: 'ex_2',
+          name: 'Press de Pecho Inclinado',
+          sets: '4 Series',
+          reps: '10 Repeticiones',
+          rest: '75 Segundos',
+          notes: 'Control de cadencia en descenso.',
+        },
+        {
+          id: 'ex_3',
+          name: 'Remo con Barra T',
+          sets: '3 Series',
+          reps: '12 Repeticiones',
+          rest: '60 Segundos',
+          notes: 'Activación dorsal completa.',
+        },
+        {
+          id: 'ex_4',
+          name: 'Zancadas Dinámicas',
+          sets: '3 Series',
+          reps: '15 por pierna',
+          rest: '45 Segundos',
+          notes: 'Mantener rodilla alineada con punta del pie.',
+        },
+      ],
+    };
+
     return {
       biochemScore,
       alertCount,
       alertLevel: alertCount > 2 ? 'high' : alertCount > 0 ? 'medium' : 'low',
-      summary: `Análisis médico procesado por la IA para ${name} (${age} años). Se evaluaron ${biomarkers.length} biomarcadores del examen de laboratorio. Se generaron ${uniqueRecommended.length} recomendaciones y ${uniqueRestricted.length} restricciones nutricionales registradas en la BD.`,
+      summary: `Análisis médico procesado por la IA para ${name} (${age} años). Se evaluaron ${biomarkers.length} biomarcadores del examen de laboratorio. Se generaron ${uniqueRecommended.length} recomendaciones, ${uniqueRestricted.length} restricciones y la rutina prescrita.`,
       biomarkers,
       recommendedFoods: uniqueRecommended,
       restrictedFoods: uniqueRestricted,
       exerciseAdjustments: uniqueExercise,
+      workoutRoutine,
       nextExamDays: 60,
       nextExamText: 'Siguiente control de laboratorio recomendado en 60 días.',
     };
