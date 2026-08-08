@@ -6,7 +6,7 @@ const env = require('../config/env');
 class AuthController {
   static async register(req, res, next) {
     try {
-      const { name, email, password, age, weight, size, height, goal } = req.body;
+      const { name, username, email, password, age, weight, size, height, goal } = req.body;
 
       if (!email || !password || !name) {
         return res.status(400).json({
@@ -15,18 +15,30 @@ class AuthController {
         });
       }
 
-      const existing = await UserModel.findByEmail(email.toLowerCase().trim());
-      if (existing) {
+      const cleanEmail = email.toLowerCase().trim();
+      const cleanUsername = (username || email.split('@')[0]).toLowerCase().trim();
+
+      const existingEmail = await UserModel.findByEmail(cleanEmail);
+      if (existingEmail) {
         return res.status(400).json({
           success: false,
           error: 'El correo electrónico ya se encuentra registrado. Intenta iniciar sesión.',
         });
       }
 
+      const existingUsername = await UserModel.findByUsername(cleanUsername);
+      if (existingUsername) {
+        return res.status(400).json({
+          success: false,
+          error: 'El nombre de usuario ya está en uso. Por favor elige otro.',
+        });
+      }
+
       const hashedPassword = await bcrypt.hash(password, 10);
       const newUser = await UserModel.create({
         name: name.trim(),
-        email: email.toLowerCase().trim(),
+        username: cleanUsername,
+        email: cleanEmail,
         password: hashedPassword,
         age: age || '32',
         weight: weight || '82',
@@ -36,7 +48,7 @@ class AuthController {
       });
 
       const token = jwt.sign(
-        { id: newUser.id, email: newUser.email, name: newUser.name },
+        { id: newUser.id, email: newUser.email, name: newUser.name, username: newUser.username },
         env.JWT_SECRET,
         { expiresIn: '30d' }
       );
@@ -48,6 +60,7 @@ class AuthController {
           user: {
             id: newUser.id,
             name: newUser.name,
+            username: newUser.username,
             email: newUser.email,
             age: newUser.age,
             weight: newUser.weight,
@@ -65,26 +78,26 @@ class AuthController {
 
   static async login(req, res, next) {
     try {
-      const { email, password } = req.body;
+      const { usernameOrEmail, email, username, password } = req.body;
+      const identifier = usernameOrEmail || email || username;
 
-      if (!email || !password) {
+      if (!identifier || !password) {
         return res.status(400).json({
           success: false,
-          error: 'Por favor ingresa tu correo electrónico y contraseña.',
+          error: 'Por favor ingresa tu usuario/correo y contraseña.',
         });
       }
 
-      const cleanEmail = email.toLowerCase().trim();
-      const user = await UserModel.findByEmail(cleanEmail);
+      const cleanId = identifier.toLowerCase().trim();
+      const user = await UserModel.findByEmailOrUsername(cleanId);
 
       if (!user) {
         return res.status(401).json({
           success: false,
-          error: 'Correo o contraseña incorrectos. Por favor verifica tus datos.',
+          error: 'Usuario, correo o contraseña incorrectos. Por favor verifica tus datos.',
         });
       }
 
-      // Validar contraseña con bcrypt o fallback para usuario semilla
       let isMatch = false;
       if (user.password.startsWith('$2a$') || user.password.startsWith('$2b$')) {
         isMatch = await bcrypt.compare(password, user.password);
@@ -95,23 +108,24 @@ class AuthController {
       if (!isMatch) {
         return res.status(401).json({
           success: false,
-          error: 'Correo o contraseña incorrectos. Por favor verifica tus datos.',
+          error: 'Usuario, correo o contraseña incorrectos. Por favor verifica tus datos.',
         });
       }
 
       const token = jwt.sign(
-        { id: user.id, email: user.email, name: user.name },
+        { id: user.id, email: user.email, name: user.name, username: user.username },
         env.JWT_SECRET,
         { expiresIn: '30d' }
       );
 
       res.json({
         success: true,
-        message: 'Inicio de sesión exitoso',
+        message: `¡Bienvenido de nuevo, ${user.name}!`,
         data: {
           user: {
             id: user.id,
             name: user.name,
+            username: user.username || user.email.split('@')[0],
             email: user.email,
             age: user.age,
             weight: user.weight,
