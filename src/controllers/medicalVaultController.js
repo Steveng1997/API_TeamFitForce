@@ -21,40 +21,53 @@ class MedicalVaultController {
       }
 
       const userProfile = (await UserModel.findById(userId)) || { name: req.user.name };
-      const primaryFile = files[0];
+      const savedExams = [];
+      let latestAnalysisResult = null;
 
-      const fileMeta = {
-        fileName: files.map(f => f.filename).join(', '),
-        originalName: files.map(f => f.originalname).join(', '),
-        fileSize: files.reduce((acc, f) => acc + f.size, 0),
-        fileType: primaryFile.mimetype,
-        fileUrl: `/uploads/${primaryFile.filename}`,
-        totalFiles: files.length,
-      };
+      // Analizar cada archivo uno por uno e insertarlo INDEPENDIENTEMENTE en la Base de Datos
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
 
-      const aiResponseId = `ai_resp_${Date.now()}_${Math.round(Math.random() * 10000)}`;
+        const fileMeta = {
+          fileName: file.filename,
+          originalName: file.originalname,
+          fileSize: file.size,
+          fileType: file.mimetype,
+          fileUrl: `/uploads/${file.filename}`,
+          documentIndex: i + 1,
+          totalDocuments: files.length,
+        };
 
-      // La IA procesa todos los exámenes subidos y genera el análisis nutricional y de rutina dinámico
-      const analysisResult = await MedicalService.processExamFiles(files, userProfile);
+        const aiResponseId = `ai_resp_${Date.now()}_${i}_${Math.round(Math.random() * 10000)}`;
 
-      // REGISTRO PERSISTENTE EN BASE DE DATOS
-      const savedExam = await MedicalVaultModel.saveExam(userId, fileMeta, analysisResult, aiResponseId);
+        // Análisis IA independiente por cada documento/imagen
+        const analysisResult = await MedicalService.processExamFile(file, userProfile);
+        latestAnalysisResult = analysisResult;
 
-      if (analysisResult.biomarkers && analysisResult.biomarkers.length > 0) {
-        await MedicalVaultModel.saveBiomarkers(userId, analysisResult.biomarkers);
+        // INSERCIÓN INDEPENDIENTE EN BASE DE DATOS PARA ESTE EXAMEN
+        const savedExam = await MedicalVaultModel.saveExam(userId, fileMeta, analysisResult, aiResponseId);
+
+        // INSERCIÓN INDEPENDIENTE DE BIOMARCADORES DE ESTE EXAMEN EN LA BASE DE DATOS
+        if (analysisResult.biomarkers && analysisResult.biomarkers.length > 0) {
+          await MedicalVaultModel.saveBiomarkers(userId, analysisResult.biomarkers);
+        }
+
+        savedExams.push(savedExam);
       }
+
+      const primaryExam = savedExams[savedExams.length - 1];
 
       res.status(201).json({
         success: true,
-        message: 'Examen médico analizado por la IA y registrado exitosamente en la base de datos.',
+        message: `${savedExams.length} examen(es) médico(s) analizado(s) por la IA e insertado(s) independientemente en la base de datos.`,
         data: {
-          examId: savedExam.id,
-          userId: savedExam.userId,
-          fileUrl: savedExam.fileUrl,
-          aiResponseId: savedExam.aiResponseId,
-          formatDetected: analysisResult.formatDetected,
-          exam: savedExam,
-          analysis: savedExam.analysisResult, // Traído del registro recién guardado en BD
+          examId: primaryExam.id,
+          userId: primaryExam.userId,
+          fileUrl: primaryExam.fileUrl,
+          aiResponseId: primaryExam.aiResponseId,
+          totalExamsSaved: savedExams.length,
+          exams: savedExams,
+          analysis: latestAnalysisResult,
         },
       });
     } catch (error) {
