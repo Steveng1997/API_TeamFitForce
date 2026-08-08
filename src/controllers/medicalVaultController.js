@@ -11,7 +11,7 @@ class MedicalVaultController {
       if (!file) {
         return res.status(400).json({
           success: false,
-          error: 'No se subió ningún archivo. Selecciona un archivo PDF, PNG o JPG válido.',
+          error: 'No se subió ningún archivo. Selecciona un archivo PDF, PNG, JPG o JPEG válido.',
         });
       }
 
@@ -26,7 +26,9 @@ class MedicalVaultController {
       };
 
       const aiResponseId = `ai_resp_${Date.now()}_${Math.round(Math.random() * 10000)}`;
-      const analysisResult = MedicalService.analyzeBiomarkers(null, userProfile);
+      
+      // Procesa el archivo detectando si es PDF, PNG, JPG o JPEG
+      const analysisResult = MedicalService.processExamFile(file, userProfile);
 
       // Guardar el registro del examen con su URL, aiResponseId y userId
       const savedExam = await MedicalVaultModel.saveExam(userId, fileMeta, analysisResult, aiResponseId);
@@ -44,6 +46,7 @@ class MedicalVaultController {
           userId: savedExam.userId,
           fileUrl: savedExam.fileUrl,
           aiResponseId: savedExam.aiResponseId,
+          formatDetected: analysisResult.formatDetected,
           exam: savedExam,
           analysis: analysisResult,
         },
