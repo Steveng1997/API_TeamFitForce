@@ -5,7 +5,24 @@ class NutritionController {
   static async getSummary(req, res, next) {
     try {
       const userId = req.user.id;
-      const summary = await NutritionModel.getSummaryByUserId(userId);
+      let summary = await NutritionModel.getSummaryByUserId(userId);
+
+      if (!summary) {
+        summary = {
+          userId,
+          date: new Date().toISOString().split('T')[0],
+          caloriesConsumed: 0,
+          caloriesTarget: 2400,
+          caloriesRemaining: 2400,
+          caloriesBurned: 0,
+          macros: {
+            protein: { current: 0, target: 160, unit: 'g' },
+            carbs: { current: 0, target: 220, unit: 'g' },
+            fats: { current: 0, target: 65, unit: 'g' },
+          },
+        };
+      }
+
       res.json({
         success: true,
         data: summary,
@@ -20,7 +37,22 @@ class NutritionController {
       const userId = req.user.id;
       const { mealName, calories, protein, carbs, fat } = req.body;
 
-      const currentSummary = await NutritionModel.getSummaryByUserId(userId);
+      let currentSummary = await NutritionModel.getSummaryByUserId(userId);
+      if (!currentSummary) {
+        currentSummary = {
+          userId,
+          caloriesConsumed: 0,
+          caloriesTarget: 2400,
+          caloriesRemaining: 2400,
+          caloriesBurned: 0,
+          macros: {
+            protein: { current: 0, target: 160, unit: 'g' },
+            carbs: { current: 0, target: 220, unit: 'g' },
+            fats: { current: 0, target: 65, unit: 'g' },
+          },
+        };
+      }
+
       const newConsumed = (currentSummary.caloriesConsumed || 0) + Number(calories || 0);
       const newRemaining = Math.max(0, currentSummary.caloriesTarget - newConsumed);
 
@@ -51,7 +83,7 @@ class NutritionController {
       const { category } = req.query;
       let recipes = await NutritionModel.getAllRecipes();
       if (!recipes || recipes.length === 0) {
-        recipes = NutritionService.getRecipes(category);
+        recipes = [];
       }
       res.json({
         success: true,

@@ -26,15 +26,11 @@ class MedicalVaultController {
       };
 
       const aiResponseId = `ai_resp_${Date.now()}_${Math.round(Math.random() * 10000)}`;
-      
-      // Procesa el archivo detectando si es PDF, PNG, JPG o JPEG
       const analysisResult = MedicalService.processExamFile(file, userProfile);
 
-      // Guardar el registro del examen con su URL, aiResponseId y userId
       const savedExam = await MedicalVaultModel.saveExam(userId, fileMeta, analysisResult, aiResponseId);
 
-      // Guardar los biomarcadores procesados en la base de datos
-      if (analysisResult.biomarkers) {
+      if (analysisResult.biomarkers && analysisResult.biomarkers.length > 0) {
         await MedicalVaultModel.saveBiomarkers(userId, analysisResult.biomarkers);
       }
 
@@ -60,10 +56,13 @@ class MedicalVaultController {
     try {
       const userId = req.user.id;
       const userProfile = (await UserModel.findById(userId)) || { name: req.user.name };
-      let userBiomarkers = await MedicalVaultModel.getBiomarkers(userId);
+      const userBiomarkers = await MedicalVaultModel.getBiomarkers(userId);
 
       if (!userBiomarkers || userBiomarkers.length === 0) {
-        userBiomarkers = undefined;
+        return res.json({
+          success: true,
+          data: null,
+        });
       }
 
       const analysis = MedicalService.analyzeBiomarkers(userBiomarkers, userProfile);
@@ -80,18 +79,12 @@ class MedicalVaultController {
   static async getBiomarkers(req, res, next) {
     try {
       const userId = req.user.id;
-      const userProfile = (await UserModel.findById(userId)) || { name: req.user.name };
-      let biomarkers = await MedicalVaultModel.getBiomarkers(userId);
-
-      if (!biomarkers || biomarkers.length === 0) {
-        const analysis = MedicalService.analyzeBiomarkers(null, userProfile);
-        biomarkers = analysis.biomarkers;
-      }
+      const biomarkers = await MedicalVaultModel.getBiomarkers(userId);
 
       res.json({
         success: true,
-        count: biomarkers.length,
-        data: biomarkers,
+        count: (biomarkers || []).length,
+        data: biomarkers || [],
       });
     } catch (error) {
       next(error);
