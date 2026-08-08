@@ -55,22 +55,26 @@ if (env.NODE_ENV === 'development') {
   app.use(morgan('dev'));
 }
 
-// Aplicar Límite de Peticiones Global (Rate Limiter)
-app.use('/api', apiLimiter);
-
 // Servir archivos estáticos de la carpeta de uploads de manera segura
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// Endpoint de prueba de salud de la API (Healthcheck)
-app.get('/api/health', (req, res) => {
-  res.json({
+// Endpoints de prueba de salud para AWS App Runner y despliegue (Healthchecks)
+const healthHandler = (req, res) => {
+  res.status(200).json({
     status: 'online',
     service: 'API TeamFit Force Backend',
     version: '1.0.0',
     timestamp: new Date().toISOString(),
     securityMode: 'Enterprise Shield Active',
   });
-});
+};
+
+app.get('/', healthHandler);
+app.get('/health', healthHandler);
+app.get('/api/health', healthHandler);
+
+// Aplicar Límite de Peticiones Global (Rate Limiter)
+app.use('/api', apiLimiter);
 
 // Montar Rutas de los Módulos de la Aplicación Móvil
 app.use('/api/auth', authRoutes);
@@ -85,15 +89,20 @@ app.use('/api/coach', coachRoutes);
 // Manejador Global de Errores
 app.use(errorMiddleware);
 
-// Inicializar Servidor y Base de Datos
+// Inicializar Servidor y Base de Datos escuchando en 0.0.0.0 para Docker / AWS App Runner
 const startServer = async () => {
-  await connectDB();
-  await runSeed();
+  try {
+    await connectDB();
+    await runSeed();
+  } catch (err) {
+    console.warn('[AWS Deploy] Advertencia en inicialización DB/Seed:', err.message);
+  }
 
-  app.listen(env.PORT, () => {
+  const PORT = process.env.PORT || env.PORT || 3000;
+  app.listen(PORT, '0.0.0.0', () => {
     console.log(`==================================================`);
     console.log(`🚀 Servidor API TeamFit Force Blindado & Seguro`);
-    console.log(`📡 URL Base: http://localhost:${env.PORT}`);
+    console.log(`📡 URL Base: http://0.0.0.0:${PORT}`);
     console.log(`🛡️  Modo Seguridad: Rate Limiting & JWT Estricto Activo`);
     console.log(`==================================================`);
   });

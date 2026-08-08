@@ -35,7 +35,7 @@ class RoutineController {
     }
   }
 
-  static async updateProgress(req, res, next) {
+  static async saveProgress(req, res, next) {
     try {
       const { id } = req.params;
       const { progressSeconds } = req.body;
@@ -46,6 +46,25 @@ class RoutineController {
         success: true,
         message: 'Progreso de rutina guardado con éxito',
         data: updated,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async updateProgress(req, res, next) {
+    return RoutineController.saveProgress(req, res, next);
+  }
+
+  static async getPlaylists(req, res, next) {
+    try {
+      res.json({
+        success: true,
+        data: [
+          { id: 'pl1', platform: 'Spotify', name: 'Workout Power Mix' },
+          { id: 'pl2', platform: 'YouTube Music', name: 'Cardio Focus 128 BPM' },
+          { id: 'pl3', platform: 'Apple Music', name: 'High Energy Fitness' },
+        ],
       });
     } catch (error) {
       next(error);
