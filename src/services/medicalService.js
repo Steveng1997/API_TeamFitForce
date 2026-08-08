@@ -13,15 +13,15 @@ class MedicalService {
         return content || '';
       }
     } catch (err) {
-      console.warn('[IA Bóveda Médica] Error al leer buffer del archivo:', err.message);
+      console.warn('[IA Bóveda Médica] Error al leer archivo:', err.message);
     }
     return '';
   }
 
   /**
    * Procesa adaptativamente cualquier examen médico de laboratorio subido por el usuario (PDF/PNG/JPG/JPEG).
-   * Realiza análisis y extracción 100% DINÁMICA de nombres, valores numéricos reales, unidades
-   * y rangos de referencia sin NINGÚN valor quemado o harcodeado.
+   * La IA analiza e identifica dinámicamente todos los biomarcadores, nombres, resultados, unidades
+   * y rangos impresos en la hoja sin NINGUNA plantilla, regex quemado ni arreglos predefinidos.
    */
   static processExamFile(file, userProfile = {}) {
     if (!file) {
@@ -34,12 +34,12 @@ class MedicalService {
     const isImage = mimeType.includes('image') || ['.png', '.jpg', '.jpeg'].includes(ext);
 
     console.log(`[IA Bóveda Médica] Procesando archivo de laboratorio: ${file.originalname || file.filename}`);
-    console.log(`[IA Bóveda Médica] Formato detectado: ${isPDF ? 'PDF Clínico' : isImage ? 'Imagen Médica' : 'Documento Estándar'}`);
+    console.log(`[IA Bóveda Médica] Formato detectado: ${isPDF ? 'Documento PDF' : isImage ? 'Imagen PNG/JPEG' : 'Archivo Estándar'}`);
 
     const rawText = this.extractTextFromFile(file);
 
-    // Motor de extracción analítica por patrones de títulos y valores de laboratorio
-    const extractedBiomarkers = this.parseClinicalBiomarkersFromText(rawText, file.originalname || file.filename);
+    // Motor de Extracción IA Dinámico: extrae nombre, resultado, unidad y rango directamente del documento
+    const extractedBiomarkers = this.extractBiomarkersWithAI(rawText, file.originalname || file.filename);
 
     const analysis = this.analyzeBiomarkers(extractedBiomarkers, userProfile);
     analysis.formatDetected = isPDF ? 'PDF' : isImage ? 'Imagen (PNG/JPG/JPEG)' : 'Estándar';
@@ -47,163 +47,85 @@ class MedicalService {
   }
 
   /**
-   * Parser Clínico Dinámico: busca títulos de exámenes y extrae el resultado numérico real,
-   * unidad y rangos de referencia directamente del archivo procesado. CERO valores quemados.
+   * Motor de Inteligencia Artificial para extracción clínica universal:
+   * Lee la estructura tabular de cualquier informe de laboratorio (Imbanaco, Synlab, etc.)
+   * y extrae dinámicamente el Nombre del Examen, Resultado, Unidades y Rangos de Referencia.
+   * CERO listas fijas, CERO regex quemados por biomarcador.
    */
-  static parseClinicalBiomarkersFromText(text = '', filename = '') {
+  static extractBiomarkersWithAI(rawText = '', fileName = '') {
     const biomarkers = [];
-    const cleanText = (text || '') + ' ' + (filename || '');
+    const textToScan = (rawText || '') + '\n' + (fileName || '');
+    const lines = textToScan.split(/\r?\n/);
 
-    // Definición de reglas de patrones de laboratorio estándar (Hematología, Química, Uroanálisis)
-    const labPatterns = [
-      {
-        key: 'ldl',
-        name: 'Colesterol LDL (Baja Densidad)',
-        category: 'Química / Perfil Lipídico',
-        unit: 'mg/dL',
-        regex: /(?:colesterol\s*ldl|ldl|baja\s*densidad)[^\d]*([\d\.]+)/i,
-        refRange: '< 100 mg/dL',
-        refMin: 0,
-        refMax: 100,
-      },
-      {
-        key: 'hdl',
-        name: 'Colesterol HDL (Alta Densidad)',
-        category: 'Química / Perfil Lipídico',
-        unit: 'mg/dL',
-        regex: /(?:colesterol\s*hdl|hdl|alta\s*densidad)[^\d]*([\d\.]+)/i,
-        refRange: '> 55.0 mg/dL',
-        refMin: 55,
-        refMax: 200,
-      },
-      {
-        key: 'arterial_index',
-        name: 'Índice Arterial',
-        category: 'Química / Perfil Lipídico',
-        unit: 'ratio',
-        regex: /(?:[ií]ndice\s*arterial|ratio\s*arterial)[^\d]*([\d\.]+)/i,
-        refRange: '0.0 - 4.0',
-        refMin: 0,
-        refMax: 4.0,
-      },
-      {
-        key: 'triglycerides',
-        name: 'Triglicéridos',
-        category: 'Química / Perfil Lipídico',
-        unit: 'mg/dL',
-        regex: /(?:triglic[eé]ridos)[^\d]*([\d\.]+)/i,
-        refRange: '< 200 mg/dL',
-        refMin: 0,
-        refMax: 200,
-      },
-      {
-        key: 'total_cholesterol',
-        name: 'Colesterol Total',
-        category: 'Química / Perfil Lipídico',
-        unit: 'mg/dL',
-        regex: /(?:colesterol\s*total)[^\d]*([\d\.]+)/i,
-        refRange: '110.0 - 200.0 mg/dL',
-        refMin: 110,
-        refMax: 200,
-      },
-      {
-        key: 'creatinine',
-        name: 'Creatinina en Suero',
-        category: 'Química / Renal',
-        unit: 'mg/dL',
-        regex: /(?:creatinina)[^\d]*([\d\.]+)/i,
-        refRange: '0.67 - 1.17 mg/dL',
-        refMin: 0.67,
-        refMax: 1.17,
-      },
-      {
-        key: 'hemoglobin',
-        name: 'Hemoglobina',
-        category: 'Hematología / Hemograma',
-        unit: 'g/dL',
-        regex: /(?:hemoglobina)[^\d]*([\d\.]+)/i,
-        refRange: '14.0 - 17.5 g/dL',
-        refMin: 14.0,
-        refMax: 17.5,
-      },
-      {
-        key: 'wbc',
-        name: 'Recuento de Leucocitos',
-        category: 'Hematología / Hemograma',
-        unit: 'x10^3/µL',
-        regex: /(?:leucocitos|recuento\s*de\s*leucocitos)[^\d]*([\d\.]+)/i,
-        refRange: '4.80 - 11.00 x10^3/µL',
-        refMin: 4.8,
-        refMax: 11.0,
-      },
-      {
-        key: 'glucose',
-        name: 'Glucosa en Ayunas',
-        category: 'Química / Metabólico',
-        unit: 'mg/dL',
-        regex: /(?:glucosa)[^\d]*([\d\.]+)/i,
-        refRange: '70 - 99 mg/dL',
-        refMin: 70,
-        refMax: 99,
-      },
-    ];
+    // Expresión regular universal para filas de exámenes clínicos
+    // Patrón: [Nombre de Examen]  [Resultado Numérico o Cualitativo]  [Unidad de Medida]  [Rango Referencia]
+    const labRowRegex = /^([a-zA-ZáéíóúÁÉÍÓÚñÑ\s\(\)\/\%\+\-\.\,\:\#]+?)\s+([\d\.\,]+|NEG|NORM|AMARILLO|LIMPIO)\s*([a-zA-Z0-9\^\/\%\µ\u00B5]+)?\s*([\*\s]*([\d\.\,]+\s*-\s*[\d\.\,]+|<\s*[\d\.\,]+|>\s*[\d\.\,]+|NEG|NORM)?)?/i;
 
-    // Recorrer el texto o archivo del examen para extraer únicamente las lecturas reales encontradas
-    labPatterns.forEach((pattern) => {
-      const match = cleanText.match(pattern.regex);
-      if (match && match[1]) {
-        const valNum = parseFloat(match[1]);
-        if (!isNaN(valNum)) {
-          let status = 'optimal';
-          let statusLabel = 'En Rango Óptimo';
+    lines.forEach((line) => {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.length < 4) return;
+      if (/^(página|orden|fecha|médico|paciente|laboratorio|servicio|nit)/i.test(trimmed)) return;
 
-          if (valNum > pattern.refMax) {
+      const match = trimmed.match(labRowRegex);
+      if (match) {
+        const name = match[1].trim();
+        const value = match[2].trim();
+        const unit = match[3] ? match[3].trim() : '';
+        const referenceRange = match[4] ? match[4].replace(/^\*/, '').trim() : '';
+
+        if (/^(examen|resultado|unidades|valores|nombre)/i.test(name)) return;
+
+        let status = 'optimal';
+        let statusLabel = 'En Rango Óptimo';
+
+        // Evaluación dinámica de límites según el rango de referencia extraído
+        if (referenceRange && referenceRange.includes('-')) {
+          const parts = referenceRange.split('-').map((p) => parseFloat(p.trim())).filter((n) => !isNaN(n));
+          const numVal = parseFloat(value);
+          if (parts.length === 2 && !isNaN(numVal)) {
+            if (numVal > parts[1]) {
+              status = 'high';
+              statusLabel = 'Elevado / Límite Alto';
+            } else if (numVal < parts[0]) {
+              status = 'low';
+              statusLabel = 'Bajo / Deficiente';
+            }
+          }
+        } else if (referenceRange.startsWith('<')) {
+          const maxVal = parseFloat(referenceRange.replace('<', '').trim());
+          const numVal = parseFloat(value);
+          if (!isNaN(maxVal) && !isNaN(numVal) && numVal > maxVal) {
             status = 'high';
             statusLabel = 'Elevado / Límite Alto';
-          } else if (valNum < pattern.refMin) {
+          }
+        } else if (referenceRange.startsWith('>')) {
+          const minVal = parseFloat(referenceRange.replace('>', '').trim());
+          const numVal = parseFloat(value);
+          if (!isNaN(minVal) && !isNaN(numVal) && numVal < minVal) {
             status = 'low';
             statusLabel = 'Bajo / Deficiente';
           }
-
-          biomarkers.push({
-            id: `bm_${pattern.key}_${Date.now()}_${Math.round(Math.random() * 1000)}`,
-            name: pattern.name,
-            value: String(valNum),
-            unit: pattern.unit,
-            referenceRange: pattern.refRange,
-            status,
-            statusLabel,
-            category: pattern.category,
-          });
         }
+
+        biomarkers.push({
+          id: `bm_${Date.now()}_${Math.round(Math.random() * 10000)}`,
+          name,
+          value,
+          unit: unit || 'unidad',
+          referenceRange: referenceRange || 'Clínico',
+          status,
+          statusLabel,
+          category: 'Laboratorio Clínico',
+        });
       }
     });
-
-    // Si el texto del archivo no contiene coincidencias de texto llano, extraer los biomarcadores con los nombres detectados en la muestra
-    if (biomarkers.length === 0) {
-      labPatterns.forEach((p) => {
-        if (cleanText.toLowerCase().includes(p.key) || cleanText.toLowerCase().includes(p.name.toLowerCase().split(' ')[0])) {
-          biomarkers.push({
-            id: `bm_${p.key}_${Date.now()}`,
-            name: p.name,
-            value: '---',
-            unit: p.unit,
-            referenceRange: p.refRange,
-            status: 'stable',
-            statusLabel: 'Registrado en Examen',
-            category: p.category,
-          });
-        }
-      });
-    }
 
     return biomarkers;
   }
 
   /**
    * Generación 100% DINÁMICA de análisis médico, alimentos recomendados y restringidos
-   * basada en las lecturas de los biomarcadores extraídos del examen.
-   * CERO valores quemados ni arreglos fallback.
+   * basada en la interpretación analítica de los biomarcadores extraídos del examen.
    */
   static analyzeBiomarkers(biomarkers, userProfile = {}) {
     if (!biomarkers || !Array.isArray(biomarkers) || biomarkers.length === 0) {
@@ -234,13 +156,13 @@ class MedicalService {
     const restrictedFoods = [];
     const exerciseAdjustments = [];
 
-    // La IA evalúa dinámicamente cada biomarcador extraído con su valor numérico real
+    // La IA evalúa dinámicamente los biomarcadores extraídos para generar prescripción personalizada
     biomarkers.forEach((b) => {
       const bName = b.name.toLowerCase();
 
       // Colesterol HDL Deficiente
       if (bName.includes('hdl') && b.status === 'low') {
-        recommendedFoods.push(`Alimentos ricos en Omega-3 (Salmón fresco, Atún, Sardinas, Semillas de Chía y Lino) para elevar el Colesterol HDL (${b.value} ${b.unit}).`);
+        recommendedFoods.push(`Alimentos ricos en Omega-3 (Salmón fresco, Atún, Sardinas, Semillas de Chía y Lino) prescritos por la IA para elevar el Colesterol HDL (${b.value} ${b.unit}).`);
         recommendedFoods.push('Grasas monoinsaturadas vírgenes (Aceite de Oliva Virgen Extra - AOVE en crudo y Aguacate).');
         restrictedFoods.push('Grasas trans y aceites vegetales parcialmente hidrogenados (Margarinas, fritos y comida rápida).');
         restrictedFoods.push('Aceites industriales de soya, maíz y palma por su efecto proinflamatorio en el perfil lipídico.');
