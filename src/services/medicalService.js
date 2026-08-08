@@ -1,29 +1,122 @@
 const fs = require('fs');
 const path = require('path');
+const pdfParse = require('pdf-parse');
 
 class MedicalService {
   /**
-   * Extrae el texto bruto de un archivo de examen médico subido (PDF o Imagen).
+   * Extrae el texto bruto de un archivo de examen médico subido (PDF o Imagen/Texto).
    */
-  static extractTextFromFile(file) {
+  static async extractTextFromFile(file) {
     try {
       if (!file || !file.path) return '';
-      if (fs.existsSync(file.path)) {
-        const content = fs.readFileSync(file.path, 'utf8');
-        return content || '';
+      if (!fs.existsSync(file.path)) return '';
+
+      const ext = path.extname(file.originalname || file.filename || '').toLowerCase();
+      const mimeType = (file.mimetype || '').toLowerCase();
+
+      if (mimeType.includes('pdf') || ext === '.pdf') {
+        const dataBuffer = fs.readFileSync(file.path);
+        const pdfData = await pdfParse(dataBuffer);
+        return pdfData.text || '';
       }
+
+      const content = fs.readFileSync(file.path, 'utf8');
+      return content || '';
     } catch (err) {
-      console.warn('[IA Bóveda Médica] Error al leer archivo:', err.message);
+      console.warn('[IA Bóveda Médica] Error al descomprimir/extraer texto del PDF o archivo:', err.message);
+      return '';
     }
-    return '';
+  }
+
+  /**
+   * Analiza el texto extraído del PDF con la API de OpenAI (gpt-4o-mini).
+   */
+  static async analyzeWithOpenAI(rawText, fileName, userProfile = {}) {
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey || apiKey.trim() === '') {
+      console.warn('[IA Bóveda Médica] Sin OPENAI_API_KEY configurado. Usando analizador clínico interno.');
+      return null;
+    }
+
+    const systemPrompt = `Eres un sistema médico experto en telemetría de laboratorio clínico y bioanálisis deportivo de TeamFit Force. 
+Tu tarea es analizar el texto extraído del examen médico de laboratorio (PDF o documento).
+Analiza ÚNICAMENTE la información real presente en el texto recibido.
+Extrae los biomarcadores reales hallados con sus valores, unidades, rangos de referencia e interpreta su estado ('optimal', 'high', 'low').
+Calcula el biochemScore (0-100), alertCount, alertLevel ('low', 'medium', 'high'), y redacta recomendaciones específicas de nutrición, alimentos a restringir y modificaciones al plan de entrenamiento basadas estrictamente en los biomarcadores del usuario.
+
+DEBES responder ÚNICAMENTE con un objeto JSON válido respetando el siguiente esquema de tipos:
+{
+  "biochemScore": number,
+  "alertCount": number,
+  "alertLevel": "low" | "medium" | "high",
+  "summary": string,
+  "biomarkers": [
+    {
+      "id": string,
+      "name": string,
+      "value": string,
+      "unit": string,
+      "referenceRange": string,
+      "status": "optimal" | "high" | "low",
+      "statusLabel": string,
+      "category": string
+    }
+  ],
+  "recommendedFoods": string[],
+  "restrictedFoods": string[],
+  "exerciseAdjustments": string[],
+  "nextExamDays": number,
+  "nextExamText": string
+}`;
+
+    const userPrompt = `Perfil del Usuario: ${JSON.stringify(userProfile)}
+Nombre del Archivo: ${fileName}
+
+Texto descomprimido del examen PDF:
+---
+${rawText || 'Sin texto legible. Analiza según la información del archivo.'}
+---`;
+
+    try {
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey.trim()}`,
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt }
+          ],
+          response_format: { type: 'json_object' },
+          temperature: 0.2,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.warn('[IA Bóveda Médica] Respuesta no exitosa de OpenAI:', response.status, errorText);
+        return null;
+      }
+
+      const data = await response.json();
+      const contentStr = data.choices?.[0]?.message?.content;
+      if (!contentStr) return null;
+
+      const parsedJSON = JSON.parse(contentStr);
+      return parsedJSON;
+    } catch (err) {
+      console.warn('[IA Bóveda Médica] Error al consultar OpenAI:', err.message);
+      return null;
+    }
   }
 
   /**
    * Procesa adaptativamente cualquier examen médico de laboratorio subido por el usuario (PDF/PNG/JPG/JPEG).
-   * La IA analiza e identifica dinámicamente todos los biomarcadores, nombres, resultados, unidades
-   * y rangos impresos en la hoja sin NINGUNA plantilla, regex quemado ni arreglos predefinidos.
    */
-  static processExamFile(file, userProfile = {}) {
+  static async processExamFile(file, userProfile = {}) {
     if (!file) {
       return this.analyzeBiomarkers([], userProfile);
     }
@@ -36,9 +129,21 @@ class MedicalService {
     console.log(`[IA Bóveda Médica] Procesando archivo de laboratorio: ${file.originalname || file.filename}`);
     console.log(`[IA Bóveda Médica] Formato detectado: ${isPDF ? 'Documento PDF' : isImage ? 'Imagen PNG/JPEG' : 'Archivo Estándar'}`);
 
-    const rawText = this.extractTextFromFile(file);
+    // 1. Extraer el texto real descomprimiendo las páginas del PDF mediante pdf-parse
+    const rawText = await this.extractTextFromFile(file);
+    console.log(`[IA Bóveda Médica] Caracteres de texto descomprimidos del PDF: ${rawText.length}`);
 
-    // Motor de Extracción IA Dinámico: extrae nombre, resultado, unidad y rango directamente del documento
+    // 2. Intentar análisis inteligente por IA con OpenAI gpt-4o-mini
+    const aiAnalysis = await this.analyzeWithOpenAI(rawText, file.originalname || file.filename, userProfile);
+
+    if (aiAnalysis && Array.isArray(aiAnalysis.biomarkers) && aiAnalysis.biomarkers.length > 0) {
+      console.log(`[IA Bóveda Médica] Análisis por IA completado exitosamente con ${aiAnalysis.biomarkers.length} biomarcadores.`);
+      aiAnalysis.formatDetected = isPDF ? 'Documento PDF (Texto Descomprimido)' : isImage ? 'Imagen (PNG/JPG/JPEG)' : 'Estándar';
+      return aiAnalysis;
+    }
+
+    // 3. Fallback: Extracción estructurada sobre el texto descomprimido del PDF
+    console.log('[IA Bóveda Médica] Ejecutando análisis clínico de respaldo sobre el texto extraído del PDF...');
     const extractedBiomarkers = this.extractBiomarkersWithAI(rawText, file.originalname || file.filename);
 
     const analysis = this.analyzeBiomarkers(extractedBiomarkers, userProfile);
@@ -48,16 +153,12 @@ class MedicalService {
 
   /**
    * Motor de Inteligencia Artificial para extracción clínica universal:
-   * Lee la estructura tabular de cualquier informe de laboratorio (Imbanaco, Synlab, etc.)
-   * y extrae dinámicamente el Nombre del Examen, Resultado, Unidades y Rangos de Referencia.
-   * CERO listas fijas, CERO regex quemados por biomarcador.
    */
   static extractBiomarkersWithAI(rawText = '', fileName = '') {
     const biomarkers = [];
     const textToScan = (rawText || '') + '\n' + (fileName || '');
     const lines = textToScan.split(/\r?\n/);
 
-    // Expresión regular universal para filas de exámenes clínicos
     const labRowRegex = /^([a-zA-ZáéíóúÁÉÍÓÚñÑ\s\(\)\/\%\+\-\.\,\:\#]+?)\s+([\d\.\,]+|NEG|NORM|AMARILLO|LIMPIO)\s*([a-zA-Z0-9\^\/\%\µ\u00B5]+)?\s*([\*\s]*([\d\.\,]+\s*-\s*[\d\.\,]+|<\s*[\d\.\,]+|>\s*[\d\.\,]+|NEG|NORM)?)?/i;
 
     lines.forEach((line) => {
@@ -122,10 +223,7 @@ class MedicalService {
   }
 
   /**
-   * Generación 100% DINÁMICA de análisis médico, alimentos recomendados y restringidos
-   * basada en la interpretación analítica de la IA sobre los biomarcadores extraídos del examen.
-   * CERO cadenas fijas o ejemplos de alimentos quemados en bloques if-else.
-   * La IA procesa y registra este análisis en la Base de Datos para que el cliente lo consulte.
+   * Generación DINÁMICA de análisis médico
    */
   static analyzeBiomarkers(biomarkers, userProfile = {}) {
     if (!biomarkers || !Array.isArray(biomarkers) || biomarkers.length === 0) {
@@ -156,8 +254,6 @@ class MedicalService {
     const restrictedFoods = [];
     const exerciseAdjustments = [];
 
-    // Motor de Prescripción Fisiológica Inteligente por IA
-    // Construye dinámicamente cada recomendación según los biomarcadores reales hallados en el examen
     biomarkers.forEach((bm) => {
       const bName = bm.name;
       const bVal = bm.value;
@@ -194,3 +290,4 @@ class MedicalService {
 }
 
 module.exports = MedicalService;
+

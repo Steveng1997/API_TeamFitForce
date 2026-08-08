@@ -33,7 +33,7 @@ class MedicalVaultController {
       const aiResponseId = `ai_resp_${Date.now()}_${Math.round(Math.random() * 10000)}`;
 
       // La IA procesa el examen y genera el análisis nutricional y de entrenamiento dinámico
-      const analysisResult = MedicalService.processExamFile(file, userProfile);
+      const analysisResult = await MedicalService.processExamFile(file, userProfile);
 
       // REGISTRO PERSISTENTE EN BASE DE DATOS
       const savedExam = await MedicalVaultModel.saveExam(userId, fileMeta, analysisResult, aiResponseId);
