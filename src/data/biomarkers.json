@@ -1,8 +1,8 @@
 [
   {
     "id": "bm1",
-    "createdAt": "2026-08-07T20:31:36.420Z",
-    "updatedAt": "2026-08-07T20:31:36.420Z",
+    "createdAt": "2026-08-08T00:19:49.833Z",
+    "updatedAt": "2026-08-08T00:19:49.833Z",
     "userId": "usr_default_123",
     "name": "Glucosa en Ayunas",
     "value": "88",
@@ -14,8 +14,8 @@
   },
   {
     "id": "bm2",
-    "createdAt": "2026-08-07T20:31:36.426Z",
-    "updatedAt": "2026-08-07T20:31:36.426Z",
+    "createdAt": "2026-08-08T00:19:49.925Z",
+    "updatedAt": "2026-08-08T00:19:49.925Z",
     "userId": "usr_default_123",
     "name": "Cortisol Matutino",
     "value": "18.4",
@@ -27,8 +27,8 @@
   },
   {
     "id": "bm3",
-    "createdAt": "2026-08-07T20:31:36.429Z",
-    "updatedAt": "2026-08-07T20:31:36.429Z",
+    "createdAt": "2026-08-08T00:19:50.015Z",
+    "updatedAt": "2026-08-08T00:19:50.015Z",
     "userId": "usr_default_123",
     "name": "PCR Ultrasensible",
     "value": "3.2",
@@ -40,8 +40,8 @@
   },
   {
     "id": "bm4",
-    "createdAt": "2026-08-07T20:31:36.433Z",
-    "updatedAt": "2026-08-07T20:31:36.433Z",
+    "createdAt": "2026-08-08T00:19:50.104Z",
+    "updatedAt": "2026-08-08T00:19:50.104Z",
     "userId": "usr_default_123",
     "name": "Vitamina D3 (25-OH)",
     "value": "54",
@@ -53,8 +53,8 @@
   },
   {
     "id": "bm5",
-    "createdAt": "2026-08-07T20:31:36.436Z",
-    "updatedAt": "2026-08-07T20:31:36.436Z",
+    "createdAt": "2026-08-08T00:19:50.191Z",
+    "updatedAt": "2026-08-08T00:19:50.191Z",
     "userId": "usr_default_123",
     "name": "Triglicéridos",
     "value": "105",
@@ -66,8 +66,8 @@
   },
   {
     "id": "bm6",
-    "createdAt": "2026-08-07T20:31:36.440Z",
-    "updatedAt": "2026-08-07T20:31:36.440Z",
+    "createdAt": "2026-08-08T00:19:50.278Z",
+    "updatedAt": "2026-08-08T00:19:50.278Z",
     "userId": "usr_default_123",
     "name": "Colesterol HDL",
     "value": "58",

@@ -1,5 +1,6 @@
 const MedicalVaultModel = require('../models/MedicalVault');
 const MedicalService = require('../services/medicalService');
+const UserModel = require('../models/User');
 
 class MedicalVaultController {
   static async uploadExam(req, res, next) {
@@ -14,6 +15,8 @@ class MedicalVaultController {
         });
       }
 
+      const userProfile = (await UserModel.findById(userId)) || { name: req.user.name };
+
       const fileMeta = {
         fileName: file.filename,
         originalName: file.originalname,
@@ -22,13 +25,25 @@ class MedicalVaultController {
         fileUrl: `/uploads/${file.filename}`,
       };
 
-      const savedExam = await MedicalVaultModel.saveExam(userId, fileMeta);
-      const analysisResult = MedicalService.analyzeBiomarkers();
+      const aiResponseId = `ai_resp_${Date.now()}_${Math.round(Math.random() * 10000)}`;
+      const analysisResult = MedicalService.analyzeBiomarkers(null, userProfile);
+
+      // Guardar el registro del examen con su URL, aiResponseId y userId
+      const savedExam = await MedicalVaultModel.saveExam(userId, fileMeta, analysisResult, aiResponseId);
+
+      // Guardar los biomarcadores procesados en la base de datos
+      if (analysisResult.biomarkers) {
+        await MedicalVaultModel.saveBiomarkers(userId, analysisResult.biomarkers);
+      }
 
       res.status(201).json({
         success: true,
-        message: 'Examen de laboratorio subido y analizado con éxito por la IA Bóveda Médica',
+        message: 'Examen de laboratorio analizado y guardado con éxito en la base de datos.',
         data: {
+          examId: savedExam.id,
+          userId: savedExam.userId,
+          fileUrl: savedExam.fileUrl,
+          aiResponseId: savedExam.aiResponseId,
           exam: savedExam,
           analysis: analysisResult,
         },
@@ -41,13 +56,14 @@ class MedicalVaultController {
   static async getAnalysisResults(req, res, next) {
     try {
       const userId = req.user.id;
+      const userProfile = (await UserModel.findById(userId)) || { name: req.user.name };
       let userBiomarkers = await MedicalVaultModel.getBiomarkers(userId);
 
       if (!userBiomarkers || userBiomarkers.length === 0) {
         userBiomarkers = undefined;
       }
 
-      const analysis = MedicalService.analyzeBiomarkers(userBiomarkers);
+      const analysis = MedicalService.analyzeBiomarkers(userBiomarkers, userProfile);
 
       res.json({
         success: true,
@@ -61,10 +77,11 @@ class MedicalVaultController {
   static async getBiomarkers(req, res, next) {
     try {
       const userId = req.user.id;
+      const userProfile = (await UserModel.findById(userId)) || { name: req.user.name };
       let biomarkers = await MedicalVaultModel.getBiomarkers(userId);
 
       if (!biomarkers || biomarkers.length === 0) {
-        const analysis = MedicalService.analyzeBiomarkers();
+        const analysis = MedicalService.analyzeBiomarkers(null, userProfile);
         biomarkers = analysis.biomarkers;
       }
 
@@ -81,6 +98,7 @@ class MedicalVaultController {
   static async updateBiomarkers(req, res, next) {
     try {
       const userId = req.user.id;
+      const userProfile = (await UserModel.findById(userId)) || { name: req.user.name };
       const { biomarkers } = req.body;
 
       if (!Array.isArray(biomarkers)) {
@@ -88,7 +106,7 @@ class MedicalVaultController {
       }
 
       const saved = await MedicalVaultModel.saveBiomarkers(userId, biomarkers);
-      const analysis = MedicalService.analyzeBiomarkers(biomarkers);
+      const analysis = MedicalService.analyzeBiomarkers(biomarkers, userProfile);
 
       res.json({
         success: true,

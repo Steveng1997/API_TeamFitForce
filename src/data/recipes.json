@@ -1,8 +1,8 @@
 [
   {
     "id": "rec1",
-    "createdAt": "2026-08-07T20:31:36.401Z",
-    "updatedAt": "2026-08-07T20:31:36.401Z",
+    "createdAt": "2026-08-08T00:19:49.387Z",
+    "updatedAt": "2026-08-08T00:19:49.387Z",
     "title": "Bowl Proteico de Salmón & Quinoa",
     "category": "Almuerzo / Cena",
     "prepTime": "20 min",
@@ -30,8 +30,8 @@
   },
   {
     "id": "rec2",
-    "createdAt": "2026-08-07T20:31:36.405Z",
-    "updatedAt": "2026-08-07T20:31:36.405Z",
+    "createdAt": "2026-08-08T00:19:49.472Z",
+    "updatedAt": "2026-08-08T00:19:49.472Z",
     "title": "Omelette Antiinflamatorio de Claras y Cúrcuma",
     "category": "Desayuno",
     "prepTime": "12 min",
