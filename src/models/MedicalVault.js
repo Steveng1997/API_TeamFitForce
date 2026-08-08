@@ -21,10 +21,12 @@ class MedicalVaultModel {
   }
 
   static async getExamsByUserId(userId) {
-    return await examsCollection.find({ userId });
+    if (!userId) return [];
+    return await examsCollection.find({ userId: String(userId) });
   }
 
   static async getLatestExam(userId) {
+    if (!userId) return null;
     const exams = await this.getExamsByUserId(userId);
     if (!exams || exams.length === 0) return null;
     return exams.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
@@ -34,7 +36,7 @@ class MedicalVaultModel {
     const records = [];
     for (const bm of biomarkersArray) {
       const saved = await biomarkersCollection.insert({
-        userId,
+        userId: String(userId),
         name: bm.name,
         value: String(bm.value),
         unit: bm.unit,
@@ -49,7 +51,8 @@ class MedicalVaultModel {
   }
 
   static async getBiomarkers(userId) {
-    return await biomarkersCollection.find({ userId });
+    if (!userId) return [];
+    return await biomarkersCollection.find({ userId: String(userId) });
   }
 }
 
