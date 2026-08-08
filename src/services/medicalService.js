@@ -6,6 +6,10 @@ class MedicalService {
   /**
    * Extrae el texto bruto de un archivo de examen médico subido (PDF o Imagen/Texto).
    */
+  /**
+   * Extrae el texto bruto de un archivo de examen médico subido (PDF o Texto).
+   * Para imágenes (PNG/JPG), se procesa mediante OpenAI Vision.
+   */
   static async extractTextFromFile(file) {
     try {
       if (!file || !file.path) return '';
@@ -20,8 +24,13 @@ class MedicalService {
         return pdfData.text || '';
       }
 
+      // Si es imagen, no leer como UTF8 binario basura
+      if (mimeType.includes('image') || ['.png', '.jpg', '.jpeg'].includes(ext)) {
+        return '';
+      }
+
       const content = fs.readFileSync(file.path, 'utf8');
-      return content || '';
+      return (content || '').substring(0, 12000);
     } catch (err) {
       console.warn('[IA Bóveda Médica] Error al descomprimir/extraer texto del PDF o archivo:', err.message);
       return '';
@@ -29,9 +38,9 @@ class MedicalService {
   }
 
   /**
-   * Analiza el texto extraído del PDF con la API de OpenAI (gpt-4o-mini).
+   * Analiza el examen (PDF o Imagen con Vision) con la API de OpenAI (gpt-4o-mini).
    */
-  static async analyzeWithOpenAI(rawText, fileName, userProfile = {}) {
+  static async analyzeWithOpenAI(file, rawText, userProfile = {}) {
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey || apiKey.trim() === '') {
       console.warn('[IA Bóveda Médica] Sin OPENAI_API_KEY configurado. Usando analizador clínico interno.');
@@ -39,8 +48,8 @@ class MedicalService {
     }
 
     const systemPrompt = `Eres un sistema médico experto en telemetría de laboratorio clínico y bioanálisis deportivo de TeamFit Force. 
-Tu tarea es analizar el texto extraído del examen médico de laboratorio (PDF o documento).
-Analiza ÚNICAMENTE la información real presente en el texto recibido.
+Tu tarea es analizar la información o imagen del examen médico de laboratorio enviado.
+Analiza ÚNICAMENTE la información real presente en el examen.
 Extrae los biomarcadores reales hallados con sus valores, unidades, rangos de referencia e interpreta su estado ('optimal', 'high', 'low').
 Calcula el biochemScore (0-100), alertCount, alertLevel ('low', 'medium', 'high'), y redacta recomendaciones específicas de nutrición, alimentos a restringir y modificaciones al plan de entrenamiento basadas estrictamente en los biomarcadores del usuario.
 
@@ -69,26 +78,47 @@ DEBES responder ÚNICAMENTE con un objeto JSON válido respetando el siguiente e
   "nextExamText": string
 }`;
 
-    const userPrompt = `Perfil del Usuario: ${JSON.stringify(userProfile)}
-Nombre del Archivo: ${fileName}
+    const mimeType = (file?.mimetype || '').toLowerCase();
+    const ext = path.extname(file?.originalname || file?.filename || '').toLowerCase();
+    const isImage = mimeType.includes('image') || ['.png', '.jpg', '.jpeg'].includes(ext);
 
-Texto descomprimido del examen PDF:
----
-${rawText || 'Sin texto legible. Analiza según la información del archivo.'}
----`;
+    let userContent;
+
+    if (isImage && file?.path && fs.existsSync(file.path)) {
+      const imageBuffer = fs.readFileSync(file.path);
+      const base64Data = imageBuffer.toString('base64');
+      const imageMime = mimeType || (ext === '.png' ? 'image/png' : 'image/jpeg');
+
+      userContent = [
+        {
+          type: 'text',
+          text: `Perfil del Usuario: ${JSON.stringify(userProfile)}\nNombre del Archivo: ${file.originalname || file.filename}\nAnaliza este examen médico de laboratorio presentado en la imagen y extrae todos los biomarcadores y recomendaciones:`,
+        },
+        {
+          type: 'image_url',
+          image_url: {
+            url: `data:${imageMime};base64,${base64Data}`,
+          },
+        },
+      ];
+    } else {
+      // Truncar de forma segura para no exceder los límites de tokens
+      const safeText = (rawText || '').substring(0, 12000);
+      userContent = `Perfil del Usuario: ${JSON.stringify(userProfile)}\nNombre del Archivo: ${file?.originalname || file?.filename}\n\nTexto descomprimido del examen PDF:\n---\n${safeText || 'Analizar según el contenido del archivo.'}\n---`;
+    }
 
     try {
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey.trim()}`,
+          Authorization: `Bearer ${apiKey.trim()}`,
         },
         body: JSON.stringify({
           model: 'gpt-4o-mini',
           messages: [
             { role: 'system', content: systemPrompt },
-            { role: 'user', content: userPrompt }
+            { role: 'user', content: userContent },
           ],
           response_format: { type: 'json_object' },
           temperature: 0.2,
@@ -131,14 +161,14 @@ ${rawText || 'Sin texto legible. Analiza según la información del archivo.'}
 
     // 1. Extraer el texto real descomprimiendo las páginas del PDF mediante pdf-parse
     const rawText = await this.extractTextFromFile(file);
-    console.log(`[IA Bóveda Médica] Caracteres de texto descomprimidos del PDF: ${rawText.length}`);
+    console.log(`[IA Bóveda Médica] Caracteres de texto descomprimidos: ${rawText.length}`);
 
-    // 2. Intentar análisis inteligente por IA con OpenAI gpt-4o-mini
-    const aiAnalysis = await this.analyzeWithOpenAI(rawText, file.originalname || file.filename, userProfile);
+    // 2. Intentar análisis inteligente por IA con OpenAI (gpt-4o-mini con soporte para PDF y Vision)
+    const aiAnalysis = await this.analyzeWithOpenAI(file, rawText, userProfile);
 
     if (aiAnalysis && Array.isArray(aiAnalysis.biomarkers) && aiAnalysis.biomarkers.length > 0) {
       console.log(`[IA Bóveda Médica] Análisis por IA completado exitosamente con ${aiAnalysis.biomarkers.length} biomarcadores.`);
-      aiAnalysis.formatDetected = isPDF ? 'Documento PDF (Texto Descomprimido)' : isImage ? 'Imagen (PNG/JPG/JPEG)' : 'Estándar';
+      aiAnalysis.formatDetected = isPDF ? 'Documento PDF (Texto Descomprimido)' : isImage ? 'Imagen (Vision IA)' : 'Estándar';
       return aiAnalysis;
     }
 
