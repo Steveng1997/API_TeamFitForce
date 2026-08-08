@@ -38,6 +38,8 @@ if (env.AWS_ACCESS_KEY_ID && env.AWS_SECRET_ACCESS_KEY) {
   }
 }
 
+const warnedTables = new Set();
+
 const TABLE_MAPPING = {
   users: env.DYNAMODB_TABLE_USERS || 'TeamFit_Users',
   biometrics: env.DYNAMODB_TABLE_BIOMETRICS || 'TeamFit_Biometrics',
@@ -103,7 +105,10 @@ class Collection {
         }
         return items;
       } catch (err) {
-        console.warn(`[DynamoDB Scan Warn - ${this.tableName}]: ${err.message}. Usando local storage.`);
+        if (!warnedTables.has(this.tableName)) {
+          warnedTables.add(this.tableName);
+          console.log(`[Database Info - ${this.tableName}]: Usando almacenamiento persistente JSON.`);
+        }
       }
     }
 

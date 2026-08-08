@@ -1,31 +1,71 @@
 const NutritionModel = require('../models/Nutrition');
 const NutritionService = require('../services/nutritionService');
+const UserModel = require('../models/User');
+const BiometricModel = require('../models/Biometric');
+const MedicalVaultModel = require('../models/MedicalVault');
 
 class NutritionController {
   static async getSummary(req, res, next) {
     try {
       const userId = req.user.id;
-      let summary = await NutritionModel.getSummaryByUserId(userId);
+      const user = (await UserModel.findById(userId)) || {};
+      const biometrics = (await BiometricModel.findLatestByUserId(userId)) || {};
+      const latestExam = await MedicalVaultModel.getLatestExam(userId);
+      const medAnalysis = latestExam?.analysisResult;
 
-      if (!summary) {
-        summary = {
-          userId,
-          date: new Date().toISOString().split('T')[0],
-          caloriesConsumed: 0,
-          caloriesTarget: 2400,
-          caloriesRemaining: 2400,
-          caloriesBurned: 0,
-          macros: {
-            protein: { current: 0, target: 160, unit: 'g' },
-            carbs: { current: 0, target: 220, unit: 'g' },
-            fats: { current: 0, target: 65, unit: 'g' },
-          },
-        };
+      const weight = parseFloat(user.weight || user.peso || '70') || 70;
+      const height = parseFloat(user.height || user.talla || user.estatura || '170') || 170;
+      const age = parseFloat(user.age || user.edad || '28') || 28;
+      const goal = (user.goal || user.objetivo || '').toLowerCase();
+
+      // Cálculo de TDEE y Calórica Meta 100% Dinámica (Ecuación Harris-Benedict / Mifflin-St Jeor)
+      const bmr = 10 * weight + 6.25 * height - 5 * age + 5;
+      let targetCalories = Math.round(bmr * 1.4);
+
+      if (goal.includes('perder') || goal.includes('bajar') || goal.includes('deficit')) {
+        targetCalories = Math.round(bmr * 1.3 - 350);
+      } else if (goal.includes('ganar') || goal.includes('musculo') || goal.includes('volumen')) {
+        targetCalories = Math.round(bmr * 1.5 + 300);
       }
+
+      // Ajuste por Score Bioquímico de Bóveda Médica
+      if (medAnalysis && medAnalysis.biochemScore && medAnalysis.biochemScore < 75) {
+        targetCalories = Math.round(targetCalories * 0.95);
+      }
+
+      const steps = biometrics.steps || 0;
+      const caloriesBurned = biometrics.activeCalories || Math.round(steps * 0.04);
+
+      // Metas de Macronutrientes Dinámicas
+      const proteinTarget = Math.round(weight * 2.0); // 2.0g de proteína por kg
+      const fatsTarget = Math.round((targetCalories * 0.28) / 9); // 28% grasas saludables
+      const carbsTarget = Math.round((targetCalories - (proteinTarget * 4 + fatsTarget * 9)) / 4);
+
+      let summary = await NutritionModel.getSummaryByUserId(userId);
+      const consumed = summary?.caloriesConsumed || 0;
+      const remaining = Math.max(0, targetCalories - consumed + caloriesBurned);
+
+      const currentProtein = summary?.macros?.protein?.current || 0;
+      const currentCarbs = summary?.macros?.carbs?.current || 0;
+      const currentFats = summary?.macros?.fats?.current || 0;
+
+      const dynamicSummary = {
+        userId,
+        date: new Date().toISOString().split('T')[0],
+        caloriesConsumed: consumed,
+        caloriesTarget: targetCalories,
+        caloriesRemaining: remaining,
+        caloriesBurned: caloriesBurned,
+        macros: {
+          protein: { current: currentProtein, target: proteinTarget, unit: 'g' },
+          carbs: { current: currentCarbs, target: carbsTarget, unit: 'g' },
+          fats: { current: currentFats, target: fatsTarget, unit: 'g' },
+        },
+      };
 
       res.json({
         success: true,
-        data: summary,
+        data: dynamicSummary,
       });
     } catch (error) {
       next(error);
